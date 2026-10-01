@@ -22,7 +22,7 @@ from common import ISSUE_HOUR, ROOT, load_calendar, load_power, load_weather, me
 COVS = ["temperature_2m", "wind_speed_10m", "cloud_cover", "shortwave_radiation", "nonwork", "short_day"]
 PRED_LEN = (23 - ISSUE_HOUR) + 24  # 39 часов: D-1 09:00 .. D 23:00
 OUT = ROOT / "results"
-DEVICE = "mps" if torch.backends.mps.is_available() else "cpu"
+DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
 
 def covariates(weather: pd.DataFrame, cal: pd.Series) -> pd.DataFrame:

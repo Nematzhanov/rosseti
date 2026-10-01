@@ -8,7 +8,7 @@ deck/node_modules/
 checkpoints/
 
 # сырые и крупные данные: воспроизводятся download.py и weather/download_weather.py
-raw/
+raw/*.log
 weather/*_points_hourly_*.csv
 
 # временные файлы проверки и черновые сборки
