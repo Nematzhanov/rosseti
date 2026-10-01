@@ -1,0 +1,749 @@
+<meta charset="utf-8">
+<title>Прогноз потребления ОЭС Северо-Запада</title>
+<style>
+/* Layout: в духе Apple — светлый фон, белые карточки без рамок, крупный заголовок, много воздуха; сводка → неделя → сравнение → детали → автор */
+:root {
+  --bg: #f5f5f7; --surface: #ffffff; --surface-2: #f0f0f3; --line: rgba(0,0,0,.08); --grid: rgba(0,0,0,.06);
+  --ink: #1d1d1f; --ink-2: #6e6e73; --ink-3: #86868b; --shade: #f2f3f6; --focus: #0071e3; --accent: #0071e3;
+  --c0: #a1a1a6; --c1: #0071e3; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100; --c5: #e87ba4; --c6: #008300; --c7: #4a3aa7; --c8: #e34948;
+  --h1: #dbe9fb; --h2: #a9cbf5; --h3: #5e9eea; --h4: #1f6fd0; --h5: #0d3f80;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  --font-data: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 22px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #000000; --surface: #1c1c1e; --surface-2: #2c2c2e; --line: rgba(255,255,255,.1); --grid: rgba(255,255,255,.08);
+    --ink: #f5f5f7; --ink-2: #a1a1a6; --ink-3: #86868b; --shade: #242427; --focus: #2997ff; --accent: #2997ff;
+    --c0: #6e6e73; --c1: #2997ff; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
+    --h1: #16263a; --h2: #1c4f8f; --h3: #2f7ad6; --h4: #6fa8ee; --h5: #c8ddf8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #000000; --surface: #1c1c1e; --surface-2: #2c2c2e; --line: rgba(255,255,255,.1); --grid: rgba(255,255,255,.08);
+  --ink: #f5f5f7; --ink-2: #a1a1a6; --ink-3: #86868b; --shade: #242427; --focus: #2997ff; --accent: #2997ff;
+  --c0: #6e6e73; --c1: #2997ff; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
+  --h1: #16263a; --h2: #1c4f8f; --h3: #2f7ad6; --h4: #6fa8ee; --h5: #c8ddf8;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1100px; margin: 0 auto; padding-inline: 24px; padding-block: 72px 48px; display: grid; gap: 22px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; font-family: var(--font-display); }
+h1 { font-size: clamp(34px, 5.6vw, 60px); font-weight: 700; letter-spacing: -0.035em; line-height: 1.04; }
+h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+p { margin: 0; }
+.num { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: 15px; font-weight: 600; color: var(--accent); }
+.muted { color: var(--ink-3); }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--focus) 45%, transparent); outline-offset: 2px; border-radius: 10px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.top { display: grid; gap: 16px; text-align: center; justify-items: center; padding-bottom: 24px; }
+.lede { color: var(--ink-2); max-width: 62ch; font-size: clamp(17px, 2vw, 21px); line-height: 1.45; letter-spacing: -0.01em; }
+.meta-row { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: center; align-items: center; font-size: 13px; color: var(--ink-3); }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background: var(--surface); color: var(--ink-2); font-weight: 500; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c3); }
+.schema { display: grid; gap: 8px; width: min(720px, 100%); margin-top: 18px; text-align: left; }
+.sch-track, .sch-labels { display: grid; grid-template-columns: 9fr 15fr 24fr; gap: 4px; }
+.sch-track div { height: 8px; border-radius: 4px; }
+.sch-known { background: var(--ink-2); }
+.sch-gap { background: var(--line); }
+.sch-target { background: var(--accent); }
+.sch-labels { font-size: 12.5px; color: var(--ink-3); line-height: 1.35; }
+.sch-labels span { min-width: 0; }
+.sch-labels b { display: block; font-weight: 600; color: var(--ink); }
+
+.controls { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; margin-inline: -24px; padding: 12px 24px; display: grid; gap: 10px;
+  background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid var(--line); }
+.ctl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ctl-label { font-size: 13px; color: var(--ink-3); margin-right: 6px; min-width: 150px; }
+.chip { border: 0; background: var(--surface-2); border-radius: 999px; padding: 6px 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink); transition: background .15s; }
+.chip:hover { background: var(--line); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.chip svg { flex: none; }
+select, input[type="date"] { border: 0; background: var(--surface-2); border-radius: 999px; padding: 6px 12px; font-size: 13px; }
+@media (max-width: 720px) { .controls { position: static; } .ctl-label { min-width: 0; width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .chip { transition: none; } }
+
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.kpi { background: var(--surface); border-radius: var(--r); padding: 22px 22px 20px; display: grid; gap: 6px; align-content: start; }
+.kpi .k { font-size: 13px; color: var(--ink-3); font-weight: 500; }
+.kpi .v { font-family: var(--font-display); font-size: 34px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.kpi:first-child .v { color: var(--accent); }
+.kpi .s { font-size: 13px; color: var(--ink-2); }
+@media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.panel { background: var(--surface); border-radius: var(--r); padding: 28px 30px; display: grid; gap: 18px; min-width: 0; }
+.panel-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 18px; }
+.panel-head p { font-size: 14px; color: var(--ink-3); margin-top: 4px; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; }
+@media (max-width: 900px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.chart { position: relative; width: 100%; min-width: 0; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.ax text { font: 11px var(--font-ui); fill: var(--ink-3); }
+.ax .lbl { font: 12px var(--font-ui); fill: var(--ink-3); }
+.week-nav { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.btn { border: 0; background: var(--surface-2); border-radius: 999px; padding: 6px 14px; cursor: pointer; font-size: 13px; color: var(--ink); }
+.btn:hover { background: var(--line); }
+.window-stats { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 13px; color: var(--ink-2); }
+.window-stats span { display: inline-flex; align-items: center; gap: 7px; }
+.legend-note { font-size: 12.5px; color: var(--ink-3); display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.sw-shade { display: inline-block; width: 14px; height: 10px; background: var(--shade); border-radius: 3px; vertical-align: -1px; margin-right: 5px; box-shadow: inset 0 0 0 1px var(--line); }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-weight: 500; font-size: 12px; color: var(--ink-3); padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 12px 10px; border-bottom: 1px solid var(--grid); vertical-align: middle; font-variant-numeric: tabular-nums; }
+td.r, th.r { text-align: right; }
+tr:last-child td { border-bottom: none; }
+.mname { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 150px; }
+.fam { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.mape-cell { display: flex; align-items: center; gap: 10px; min-width: 150px; }
+.mape-bar { height: 6px; border-radius: 3px; flex: none; }
+tr.is-best td { font-weight: 600; }
+.summary { font-size: 13px; color: var(--ink-3); border-top: 1px solid var(--grid); padding-top: 12px; }
+
+.hbars { display: grid; gap: 14px; }
+.hgroup { display: grid; gap: 10px; }
+.hrow { display: grid; grid-template-columns: minmax(110px, 40%) minmax(0, 1fr); gap: 12px; align-items: center; font-size: 13px; color: var(--ink-2); }
+.htrack { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.hbar { height: 8px; border-radius: 4px; flex: none; }
+.hval { font-size: 12px; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.heat-wrap { overflow-x: auto; }
+.heat-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--ink-3); align-items: center; }
+.heat-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -2px; }
+.heat-cell { cursor: pointer; }
+
+#tip { position: fixed; z-index: 20; pointer-events: none; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  color: var(--ink); border-radius: 14px; padding: 10px 12px; font-size: 12.5px; box-shadow: 0 10px 30px rgba(0,0,0,.14), 0 0 0 1px var(--line); max-width: 320px; }
+#tip .t-h { font-weight: 600; margin-bottom: 4px; }
+#tip .t-r { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto auto; gap: 2px 8px; align-items: center; }
+#tip .t-r .num { text-align: right; }
+
+.notes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; font-size: 14px; color: var(--ink-2); }
+.notes h2 { font-size: 17px; }
+.notes ul { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 6px; }
+@media (max-width: 900px) { .notes { grid-template-columns: minmax(0, 1fr); } }
+
+.author { background: var(--surface); border-radius: var(--r); padding: 30px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: center; margin-top: 18px; }
+.avatar { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-display); font-size: 28px; font-weight: 700; color: #fff;
+  background: linear-gradient(135deg, var(--accent), #5ac8fa); }
+.author .role { color: var(--ink-2); margin-top: 6px; max-width: 64ch; }
+.links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.link { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; background: var(--surface-2); color: var(--ink); font-size: 14px; }
+.link:hover { background: var(--line); text-decoration: none; }
+.link svg { width: 17px; height: 17px; fill: currentColor; }
+.email { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; font-size: 14px; color: var(--ink-3); }
+.email code { font-family: var(--font-data); color: var(--ink); user-select: all; }
+@media (max-width: 560px) { .author { grid-template-columns: minmax(0, 1fr); } }
+.foot { text-align: center; font-size: 12px; color: var(--ink-3); padding-top: 6px; }
+@media (max-width: 480px) { .wrap { padding-inline: 16px; padding-block: 44px 32px; } .controls { margin-inline: -16px; padding-inline: 16px; } .panel { padding: 22px 18px; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">ОЭС Северо-Запада · прогноз на сутки вперёд</div>
+    <h1>Прогноз потребления.<br>На сутки вперёд.</h1>
+    <p class="lede" id="lede"></p>
+    <div class="meta-row"><span class="pill" id="version"></span><span id="built"></span></div>
+    <div class="schema" aria-label="Схема выпуска прогноза">
+      <div class="sch-track"><div class="sch-known"></div><div class="sch-gap"></div><div class="sch-target"></div></div>
+      <div class="sch-labels">
+        <span><b>D−1, 00–08 ч</b>потребление известно</span>
+        <span><b>09:00 — выпуск прогноза</b>D−1, 09–23 ч не оценивается</span>
+        <span><b>Сутки D, 00–23 ч</b>24 часа, по которым считается ошибка</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="controls" aria-label="Фильтры">
+    <div class="ctl-row" id="periods"><span class="ctl-label">Период для оценки</span></div>
+    <div class="ctl-row" id="model-chips"><span class="ctl-label">Модели на графиках</span></div>
+  </section>
+
+  <section class="kpis" id="kpis" aria-live="polite"></section>
+
+  <section class="panel" id="main-panel">
+    <div class="panel-head">
+      <div><h2>Факт и прогноз, почасово</h2><p id="week-title"></p></div>
+      <div class="week-nav">
+        <button class="btn" id="prev" aria-label="Предыдущая неделя">←</button>
+        <input type="date" id="week-date" aria-label="Неделя, содержащая дату">
+        <button class="btn" id="next" aria-label="Следующая неделя">→</button>
+        <button class="btn" data-preset="cold">Самая холодная неделя</button>
+        <button class="btn" data-preset="ny">Новогодние праздники</button>
+        <button class="btn" data-preset="worst">Худшая неделя первой модели</button>
+      </div>
+    </div>
+    <div class="chart" id="main-chart"></div>
+    <div class="chart" id="temp-chart"></div>
+    <div class="legend-note"><span><i class="sw-shade"></i>нерабочие дни по производственному календарю</span><span>Температура: сплошная — прогноз на сутки, пунктир — факт</span></div>
+    <div class="window-stats" id="window-stats"></div>
+  </section>
+
+  <div class="grid2">
+    <section class="panel">
+      <div class="panel-head"><div><h2>Сравнение моделей</h2><p id="table-sub"></p></div></div>
+      <div class="table-wrap"><table id="leaderboard"></table></div>
+      <p class="summary" id="table-note"></p>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><div><h2>Ошибка по месяцам</h2><p>MAPE, %, для моделей, выбранных вверху</p></div></div>
+      <div class="chart" id="monthly-chart"></div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div><h2>Календарь ошибок по суткам</h2><p>MAPE за сутки. Нажмите на день, чтобы открыть его неделю на графике.</p></div>
+      <label class="week-nav"><span class="muted">Модель</span><select id="heat-model"></select></label>
+    </div>
+    <div class="heat-wrap"><div class="chart" id="heat-chart"></div></div>
+    <div class="heat-legend" id="heat-legend"></div>
+  </section>
+
+  <div class="grid2">
+    <section class="panel">
+      <div class="panel-head"><div><h2>Потребление и температура</h2><p id="scatter-sub"></p></div></div>
+      <div class="chart" id="scatter-chart"></div>
+      <div class="legend-note" id="scatter-legend"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><div><h2>Важные признаки LightGBM</h2><p>Доля прироста качества (gain), среднее по 12 ежемесячным моделям, %</p></div></div>
+      <div class="hbars" id="importance"></div>
+    </section>
+  </div>
+
+  <section class="panel notes">
+    <div>
+      <h2>Как устроен эксперимент</h2>
+      <ul>
+        <li>Прогноз на сутки D выпускается в D−1 в 09:00 МСК. Модели видят потребление до 08:00 и прогноз погоды на завтра.</li>
+        <li>Проверка честная: на тестовом году используется прогноз погоды, выпущенный накануне, а не фактическая погода.</li>
+        <li>LightGBM переобучается каждый месяц на всех прошлых данных. Chronos-2 (Amazon, 120 млн параметров) дообучается один раз на данных до 30.09.2025. Ансамбль — среднее LightGBM и Chronos-2 без дообучения.</li>
+        <li>Погода — средневзвешенная по населению по 9 городам ОЭС: Санкт-Петербург, Ленобласть, Петрозаводск, Мурманск, Архангельск, Сыктывкар, Великий Новгород, Псков, Калининград.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Данные и ограничения</h2>
+      <ul>
+        <li>Потребление: оперативные почасовые данные <a href="https://www.so-ups.ru/functioning/ees/ees-indicators/ees-gen-consump-hour/" target="_blank" rel="noopener">СО ЕЭС</a>, уточнённые месячные цифры могут отличаться.</li>
+        <li>Погода: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> — реанализ ERA5 для обучения, архив прогнозов на сутки для теста. Календарь: isdayoff.ru.</li>
+        <li>ОЭС Северо-Запада не совпадает с СЗФО: Вологодская область входит в ОЭС Центра.</li>
+        <li id="timing-note"></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="author" aria-labelledby="me">
+    <div class="avatar" aria-hidden="true">МН</div>
+    <div>
+      <h2 id="me">Мухаммадзохид Нематжанов</h2>
+      <p class="role">Студент Политехнического института НовГУ имени Ярослава Мудрого, Великий Новгород. Автор исследования: собрал данные, обучил и проверил модели, сделал этот сайт.</p>
+      <div class="links">
+        <a class="link" href="https://github.com/Nematzhanov" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>GitHub</a>
+        <a class="link" href="https://t.me/nematzhonov" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.9 4.3 18.7 19.4c-.24 1.06-.87 1.32-1.76.82l-4.87-3.59-2.35 2.26c-.26.26-.48.48-.98.48l.35-4.96 9.03-8.16c.39-.35-.09-.55-.61-.2L6.35 13.07l-4.8-1.5c-1.04-.33-1.06-1.04.22-1.54l18.76-7.23c.87-.32 1.63.2 1.37 1.5Z"/></svg>Telegram</a>
+        <a class="link" href="https://www.instagram.com/nematzhanov_" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0 8.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4ZM17.3 5.5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4ZM12 2.2c-2.66 0-3 .01-4.04.06-1.05.05-1.76.21-2.39.46a4.8 4.8 0 0 0-1.74 1.13A4.8 4.8 0 0 0 2.7 5.6c-.25.62-.41 1.34-.46 2.38C2.2 9.03 2.2 9.36 2.2 12s.01 2.97.06 4.02c.05 1.04.21 1.76.46 2.38.25.65.59 1.2 1.13 1.74.55.55 1.1.88 1.74 1.13.63.25 1.34.41 2.39.46 1.04.05 1.38.06 4.03.06s2.99-.01 4.03-.06c1.05-.05 1.76-.21 2.39-.46a4.8 4.8 0 0 0 1.74-1.13 4.8 4.8 0 0 0 1.13-1.74c.25-.62.41-1.34.46-2.38.05-1.05.06-1.38.06-4.02s-.01-2.97-.06-4.02c-.05-1.04-.21-1.76-.46-2.38a4.8 4.8 0 0 0-1.13-1.74 4.8 4.8 0 0 0-1.74-1.13c-.63-.25-1.34-.41-2.39-.46C15 2.21 14.66 2.2 12 2.2Zm0 1.8c2.6 0 2.91.01 3.94.06.95.04 1.47.2 1.81.33.46.18.78.39 1.12.73.34.34.55.66.73 1.12.13.34.29.86.33 1.81.05 1.03.06 1.34.06 3.95s-.01 2.92-.06 3.95c-.04.95-.2 1.47-.33 1.81-.18.46-.39.78-.73 1.12-.34.34-.66.55-1.12.73-.34.13-.86.29-1.81.33-1.03.05-1.34.06-3.94.06s-2.91-.01-3.94-.06c-.95-.04-1.47-.2-1.81-.33a3 3 0 0 1-1.12-.73 3 3 0 0 1-.73-1.12c-.13-.34-.29-.86-.33-1.81C4.01 14.92 4 14.61 4 12s.01-2.92.06-3.95c.04-.95.2-1.47.33-1.81.18-.46.39-.78.73-1.12.34-.34.66-.55 1.12-.73.34-.13.86-.29 1.81-.33C9.09 4.01 9.4 4 12 4Z"/></svg>Instagram</a>
+      </div>
+      <p class="email">Почта <code id="mail">nematzhanov.m@gmail.com</code><button class="btn" id="copy">Скопировать</button></p>
+    </div>
+  </section>
+  <p class="foot">Данные: АО «СО ЕЭС», Open-Meteo, isdayoff.ru</p>
+</div>
+<div id="tip" hidden></div>
+
+<script type="application/json" id="data">/*__DATA__*/null</script>
+<script>
+(() => {
+const D = JSON.parse(document.getElementById('data').textContent);
+const NS = 'http://www.w3.org/2000/svg';
+const NH = D.meta.hours, ND = Math.floor(NH / 24);
+const [sy, sm, sd] = D.meta.start.slice(0, 10).split('-').map(Number);
+const T0 = Date.UTC(sy, sm - 1, sd);
+const WD = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+const MON = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+const MON_FULL = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+const FAM = { base: 'базовая', ml: 'ML', fm: 'foundation-модель', ens: 'ансамбль' };
+const M = D.models, MK = Object.fromEntries(M.map(m => [m.key, m]));
+const A = D.actual, P = D.pred, R = D.refs || {};
+const series = k => P[k] || R[k];  // R — эталонные ряды для сводных цифр, на графиках не рисуются
+const has = k => k in MK;
+
+const pad = n => String(n).padStart(2, '0');
+const dayDate = d => new Date(T0 + d * 864e5);
+const dmy = dt => `${pad(dt.getUTCDate())}.${pad(dt.getUTCMonth() + 1)}.${dt.getUTCFullYear()}`;
+const dm = dt => `${pad(dt.getUTCDate())}.${pad(dt.getUTCMonth() + 1)}`;
+const iso = dt => `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
+const nf0 = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
+const nf1 = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const nf2 = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const signed = (v, f = nf0) => (v > 0 ? '+' : v < 0 ? '−' : '') + f.format(Math.abs(v));
+const col = m => m.slot ? `var(--c${m.slot})` : 'var(--c0)';
+
+function s(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function swatch(m, w = 22) {
+  const svg = s('svg', { width: w, height: 10, viewBox: `0 0 ${w} 10`, 'aria-hidden': 'true' });
+  s('line', { x1: 1, y1: 5, x2: w - 1, y2: 5, 'stroke-width': 2.5, 'stroke-linecap': 'round', 'stroke-dasharray': m.dash || '', style: `stroke:${m.key === 'actual' ? 'var(--ink)' : col(m)}` }, svg);
+  return svg;
+}
+function nice(lo, hi, n = 5) {
+  const span = Math.max(hi - lo, 1e-9), raw = span / n, mag = 10 ** Math.floor(Math.log10(raw)), f = raw / mag;
+  const step = (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * mag;
+  const a = Math.floor(lo / step) * step, b = Math.ceil(hi / step) * step, ticks = [];
+  for (let v = a; v <= b + step * 1e-6; v += step) ticks.push(+v.toFixed(10));
+  return { lo: a, hi: b, ticks };
+}
+
+// ---------- подсказка ----------
+const tip = document.getElementById('tip');
+function showTip(html, x, y) {
+  tip.innerHTML = html; tip.hidden = false;
+  const r = tip.getBoundingClientRect(), vw = window.innerWidth, vh = window.innerHeight;
+  let left = x + 14, top = y + 14;
+  if (left + r.width > vw - 8) left = x - r.width - 14;
+  if (top + r.height > vh - 8) top = y - r.height - 14;
+  tip.style.left = Math.max(8, left) + 'px'; tip.style.top = Math.max(8, top) + 'px';
+}
+const hideTip = () => { tip.hidden = true; };
+
+// ---------- производные данные ----------
+const dayTemp = [], peakIdx = [], dayMonth = [], dayKey = [];
+for (let d = 0; d < ND; d++) {
+  let st = 0, nt = 0, best = -1, bv = -Infinity;
+  for (let h = 0; h < 24; h++) {
+    const i = d * 24 + h;
+    if (D.temp_act[i] != null) { st += D.temp_act[i]; nt++; }
+    if (A[i] != null && A[i] > bv) { bv = A[i]; best = i; }
+  }
+  dayTemp.push(nt ? st / nt : null); peakIdx.push(best);
+  const dt = dayDate(d); dayMonth.push(dt.getUTCMonth() + 1);
+  dayKey.push(`${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}`);
+}
+const months = [...new Set(dayKey)];
+const dayType = d => D.day_type[d] ?? 0;
+
+const PERIODS = [
+  ['all', 'Весь год', () => true],
+  ['autumn', 'Осень', d => [9, 10, 11].includes(dayMonth[d])],
+  ['winter', 'Зима', d => [12, 1, 2].includes(dayMonth[d])],
+  ['spring', 'Весна', d => [3, 4, 5].includes(dayMonth[d])],
+  ['summer', 'Лето', d => [6, 7, 8].includes(dayMonth[d])],
+  ['frost', 'Морозы ниже −10 °C', d => dayTemp[d] != null && dayTemp[d] < -10],
+  ['nonwork', 'Выходные и праздники', d => dayType(d) === 1],
+  ['work', 'Рабочие дни', d => dayType(d) !== 1],
+];
+function periodLabel(p) {
+  if (p.startsWith('m:')) { const [y, mm] = p.slice(2).split('-'); return `${MON_FULL[+mm - 1]} ${y}`; }
+  return PERIODS.find(x => x[0] === p)[1];
+}
+function periodMask(p) {
+  const fn = p.startsWith('m:') ? (d => dayKey[d] === p.slice(2)) : PERIODS.find(x => x[0] === p)[2];
+  return Array.from({ length: ND }, (_, d) => fn(d));
+}
+
+function metrics(key, mask, d0 = 0, d1 = ND) {
+  const pr = series(key); let n = 0, ape = 0, ae = 0, se = 0, e0 = 0, pk = 0, np = 0;
+  for (let d = d0; d < d1; d++) {
+    if (!mask[d]) continue;
+    for (let i = d * 24; i < d * 24 + 24; i++) {
+      const a = A[i], p = pr[i];
+      if (a == null || p == null) continue;
+      const e = p - a; n++; ape += Math.abs(e) / a; ae += Math.abs(e); se += e * e; e0 += e;
+      if (i === peakIdx[d]) { pk += Math.abs(e); np++; }
+    }
+  }
+  if (!n) return null;
+  return { mape: ape / n * 100, mae: ae / n, rmse: Math.sqrt(se / n), peak: np ? pk / np : NaN, bias: e0 / n, n };
+}
+const cache = new Map();
+function allMetrics(p) {
+  if (!cache.has(p)) { const mask = periodMask(p); cache.set(p, { mask, m: Object.fromEntries([...M.map(m => m.key), ...Object.keys(R)].map(k => [k, metrics(k, mask)])) }); }
+  return cache.get(p);
+}
+const bestKey = mm => M.filter(m => m.key !== 'lgb_oracle' && mm[m.key]).sort((a, b) => mm[a.key].mape - mm[b.key].mape)[0]?.key;
+
+// ---------- состояние ----------
+const state = {
+  period: 'all',
+  models: new Set(M.map(m => m.key)),
+  week: 0,
+  heat: null,
+};
+if (!state.models.size) state.models.add(M[M.length - 1].key);
+
+// ---------- шапка ----------
+const first = dayDate(0), last = dayDate(ND - 1);
+document.getElementById('lede').textContent =
+  `Почасовой прогноз потребления на сутки вперёд, проверенный на целом году: ${dmy(first)} – ${dmy(last)}, ${ND} суток. ` +
+  `Сравниваются базовые модели, градиентный бустинг LightGBM и предобученная модель временных рядов Chronos-2 с дообучением.`;
+document.getElementById('version').textContent = D.meta.version || 'Результаты бэктеста';
+document.getElementById('built').textContent = `Собрано ${D.meta.built}`;
+const tm = D.timing || {};
+const tparts = [];
+if (tm.chronos_ft_full_train) tparts.push(`полное дообучение — ${Math.round(tm.chronos_ft_full_train / 60)} мин`);
+if (tm.chronos_ft_lora_train) tparts.push(`LoRA — ${Math.round(tm.chronos_ft_lora_train / 60)} мин`);
+document.getElementById('timing-note').textContent = tparts.length
+  ? `Дообучение Chronos-2 на ноутбуке Apple M3 (8 ГБ): ${tparts.join(', ')}; прогноз на весь год — около минуты.`
+  : 'Chronos-2 запускался на ноутбуке Apple M3 (8 ГБ).';
+
+// ---------- фильтры ----------
+const periodsEl = document.getElementById('periods');
+for (const [k, label] of PERIODS) {
+  const b = document.createElement('button');
+  b.className = 'chip'; b.textContent = label; b.dataset.period = k; b.id = 'period-' + k;
+  b.addEventListener('click', () => { state.period = k; monthSel.value = ''; renderPeriod(); });
+  periodsEl.appendChild(b);
+}
+const monthSel = document.createElement('select');
+monthSel.id = 'period-month'; monthSel.setAttribute('aria-label', 'Месяц');
+monthSel.innerHTML = '<option value="">Месяц…</option>' + months.map(k => { const [y, mm] = k.split('-'); return `<option value="${k}">${MON_FULL[+mm - 1]} ${y}</option>`; }).join('');
+monthSel.addEventListener('change', () => { state.period = monthSel.value ? 'm:' + monthSel.value : 'all'; renderPeriod(); });
+periodsEl.appendChild(monthSel);
+
+const chipsEl = document.getElementById('model-chips');
+for (const m of M) {
+  const b = document.createElement('button');
+  b.className = 'chip'; b.id = 'model-' + m.key; b.title = m.name;
+  b.appendChild(swatch(m)); b.append(m.short);
+  b.addEventListener('click', () => {
+    state.models.has(m.key) ? state.models.delete(m.key) : state.models.add(m.key);
+    renderModels();
+  });
+  chipsEl.appendChild(b);
+}
+
+// ---------- плитки ----------
+function renderKPIs() {
+  const { m: mm } = allMetrics(state.period), bk = bestKey(mm), b = mm[bk];
+  const nv = mm.naive_week, lw = mm.lgb_noweather, lf = mm.lgb_fcst;
+  const nDays = periodMask(state.period).filter(Boolean).length;
+  const tiles = [
+    ['Лучшая модель, MAPE', `${nf2.format(b.mape)} %`, `${MK[bk].name}`],
+    ['Точнее простого прогноза', nv ? `в ${nf1.format(nv.mape / b.mape)} раза` : '—', nv ? `прогноз «как неделю назад» ошибается на ${nf2.format(nv.mape)} %` : ''],
+    ['Вклад прогноза погоды', lw && lf ? `−${nf0.format((1 - lf.mape / lw.mape) * 100)} %` : '—', lw && lf ? `ошибка LightGBM: ${nf2.format(lw.mape)} % без погоды → ${nf2.format(lf.mape)} % с ней` : ''],
+    ['Ошибка в пиковый час', `${nf0.format(b.peak)} МВт`, `${MK[bk].short}, средняя по суткам периода`],
+  ];
+  document.getElementById('kpis').innerHTML = tiles.map(([k, v, sub]) =>
+    `<div class="kpi"><span class="k">${k}</span><span class="v">${v}</span><span class="s">${sub}</span></div>`).join('');
+  document.getElementById('table-sub').textContent = `${periodLabel(state.period)}: ${nDays} суток, ${nf0.format(nDays * 24)} часов. Сортировка по MAPE.`;
+}
+
+// ---------- таблица ----------
+function renderTable() {
+  const { m: mm } = allMetrics(state.period), bk = bestKey(mm);
+  const rows = M.filter(m => mm[m.key]).sort((a, b) => mm[a.key].mape - mm[b.key].mape);
+  const mx = Math.max(...rows.map(m => mm[m.key].mape));
+  const t = document.getElementById('leaderboard');
+  t.innerHTML = `<thead><tr><th>#</th><th>Модель</th><th>MAPE</th><th class="r">MAE, МВт</th><th class="r">Пиковый час, МВт</th><th class="r">Смещение, МВт</th></tr></thead>`;
+  const tb = document.createElement('tbody');
+  rows.forEach((m, i) => {
+    const r = mm[m.key], tr = document.createElement('tr');
+    if (m.key === 'lgb_oracle') tr.className = 'is-oracle';
+    if (m.key === bk) tr.classList.add('is-best');
+    tr.innerHTML = `<td class="num">${i + 1}</td>
+      <td><div class="mname"></div></td>
+      <td><div class="mape-cell"><span class="mape-bar" style="width:${Math.max(3, r.mape / mx * 80)}px;background:${col(m)}"></span><span class="num">${nf2.format(r.mape)} %</span></div></td>
+      <td class="r num">${nf0.format(r.mae)}</td>
+      <td class="r num">${nf0.format(r.peak)}</td><td class="r num">${signed(r.bias)}</td>`;
+    const nm = tr.querySelector('.mname');
+    nm.appendChild(swatch(m));
+    const span = document.createElement('span'); span.textContent = m.short; span.title = m.name; nm.appendChild(span);
+    const fam = document.createElement('span'); fam.className = 'fam'; fam.textContent = FAM[m.family]; nm.appendChild(fam);
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb);
+  document.getElementById('table-note').textContent = D.meta.n_tested
+    ? `Всего проверено моделей: ${D.meta.n_tested}. Здесь — лучшая модель каждого подхода; полная таблица в отчёте проекта.`
+    : '';
+}
+
+// ---------- основной график ----------
+function weekBounds() { return [state.week, Math.min(ND, state.week + 7)]; }
+function setWeek(d) {
+  const dt = dayDate(Math.max(0, Math.min(ND - 1, d)));
+  const mon = d - ((dt.getUTCDay() + 6) % 7);
+  state.week = Math.max(0, Math.min(ND - 7, mon));
+  renderMain();
+}
+function renderMain() {
+  const box = document.getElementById('main-chart'), tbox = document.getElementById('temp-chart');
+  const W = box.clientWidth || 800, narrow = W < 640;
+  const keys = M.filter(m => state.models.has(m.key)).map(m => m.key);
+  const labels = !narrow && keys.length <= 4;
+  const mg = { l: 58, r: labels ? 150 : 14, t: 12, b: 30 }, H = narrow ? 250 : 320, TH = 92;
+  const [d0, d1] = weekBounds(), i0 = d0 * 24, i1 = d1 * 24, n = i1 - i0;
+  const x = i => mg.l + (i - i0 + 0.5) / n * (W - mg.l - mg.r);
+  let lo = Infinity, hi = -Infinity;
+  for (let i = i0; i < i1; i++) for (const arr of [A, ...keys.map(k => P[k])]) { const v = arr[i]; if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }
+  const yy = nice(lo - (hi - lo) * 0.04, hi + (hi - lo) * 0.04, narrow ? 4 : 6);
+  const y = v => mg.t + (1 - (v - yy.lo) / (yy.hi - yy.lo)) * (H - mg.t - mg.b);
+
+  const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': 'Почасовое потребление: факт и прогноз за неделю' });
+  const ax = s('g', { class: 'ax' }, svg);
+  for (let d = d0; d < d1; d++) {
+    const xa = x(d * 24) - (W - mg.l - mg.r) / n / 2, xb = xa + 24 / n * (W - mg.l - mg.r);
+    if (dayType(d) === 1) s('rect', { x: xa, y: mg.t, width: xb - xa, height: H - mg.t - mg.b, style: 'fill:var(--shade)' }, svg);
+    if (d > d0) s('line', { x1: xa, x2: xa, y1: mg.t, y2: H - mg.b, style: 'stroke:var(--line)' }, svg);
+    const dt = dayDate(d);
+    s('text', { x: (xa + xb) / 2, y: H - 10, 'text-anchor': 'middle' }, ax).textContent = narrow ? `${WD[dt.getUTCDay()]} ${pad(dt.getUTCDate())}` : `${WD[dt.getUTCDay()]} ${dm(dt)}`;
+  }
+  for (const t of yy.ticks) {
+    s('line', { x1: mg.l, x2: W - mg.r, y1: y(t), y2: y(t), style: 'stroke:var(--grid)' }, svg);
+    s('text', { x: mg.l - 8, y: y(t) + 4, 'text-anchor': 'end' }, ax).textContent = nf0.format(t);
+  }
+  s('text', { x: 0, y: mg.t - 2, class: 'lbl' }, ax).textContent = 'МВт';
+  const path = arr => { let dstr = '', pen = false; for (let i = i0; i < i1; i++) { const v = arr[i]; if (v == null) { pen = false; continue; } dstr += (pen ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(v).toFixed(1); pen = true; } return dstr; };
+  for (const k of keys) s('path', { d: path(P[k]), fill: 'none', 'stroke-width': 1.8, 'stroke-linejoin': 'round', 'stroke-dasharray': MK[k].dash || '', style: `stroke:${col(MK[k])}` }, svg);
+  s('path', { d: path(A), fill: 'none', 'stroke-width': 2.6, 'stroke-linejoin': 'round', style: 'stroke:var(--ink)' }, svg);
+
+  if (labels) {
+    const items = [{ k: 'actual', name: 'Факт', v: A[i1 - 1] }, ...keys.map(k => ({ k, name: MK[k].short, v: P[k][i1 - 1] }))].filter(o => o.v != null);
+    items.forEach(o => { o.y = y(o.v); }); items.sort((a, b) => a.y - b.y);
+    for (let j = 1; j < items.length; j++) items[j].y = Math.max(items[j].y, items[j - 1].y + 14);
+    const over = items.length ? items[items.length - 1].y - (H - mg.b) : 0;
+    if (over > 0) items.forEach(o => { o.y -= over; });
+    for (const o of items) {
+      const c = o.k === 'actual' ? 'var(--ink)' : col(MK[o.k]);
+      s('line', { x1: W - mg.r + 6, x2: W - mg.r + 16, y1: o.y, y2: o.y, 'stroke-width': 2.5, 'stroke-dasharray': o.k === 'actual' ? '' : (MK[o.k].dash || ''), style: `stroke:${c}` }, svg);
+      s('text', { x: W - mg.r + 20, y: o.y + 4, style: 'font:12px var(--font-ui);fill:var(--ink-2)' }, svg).textContent = o.name;
+    }
+  }
+
+  // температура
+  const tsvg = s('svg', { viewBox: `0 0 ${W} ${TH}`, height: TH, role: 'img', 'aria-label': 'Температура за неделю' });
+  const tax = s('g', { class: 'ax' }, tsvg);
+  let tlo = Infinity, thi = -Infinity;
+  for (let i = i0; i < i1; i++) for (const v of [D.temp_fcst[i], D.temp_act[i]]) if (v != null) { tlo = Math.min(tlo, v); thi = Math.max(thi, v); }
+  const ty = nice(tlo - 1, thi + 1, 3);
+  const yt = v => 8 + (1 - (v - ty.lo) / (ty.hi - ty.lo)) * (TH - 16);
+  for (let d = d0; d < d1; d++) if (dayType(d) === 1) { const xa = x(d * 24) - (W - mg.l - mg.r) / n / 2; s('rect', { x: xa, y: 8, width: 24 / n * (W - mg.l - mg.r), height: TH - 16, style: 'fill:var(--shade)' }, tsvg); }
+  for (const t of ty.ticks) {
+    s('line', { x1: mg.l, x2: W - mg.r, y1: yt(t), y2: yt(t), style: `stroke:${t === 0 ? 'var(--ink-3)' : 'var(--grid)'}` }, tsvg);
+    s('text', { x: mg.l - 8, y: yt(t) + 4, 'text-anchor': 'end' }, tax).textContent = (t > 0 ? '+' : t < 0 ? '−' : '') + Math.abs(t);
+  }
+  s('text', { x: 0, y: 12, class: 'lbl' }, tax).textContent = '°C';
+  const tpath = arr => { let dstr = '', pen = false; for (let i = i0; i < i1; i++) { const v = arr[i]; if (v == null) { pen = false; continue; } dstr += (pen ? 'L' : 'M') + x(i).toFixed(1) + ',' + yt(v).toFixed(1); pen = true; } return dstr; };
+  s('path', { d: tpath(D.temp_act), fill: 'none', 'stroke-width': 1.5, 'stroke-dasharray': '3 3', style: 'stroke:var(--ink-3)' }, tsvg);
+  s('path', { d: tpath(D.temp_fcst), fill: 'none', 'stroke-width': 2, style: 'stroke:var(--ink-2)' }, tsvg);
+
+  // наведение
+  const cross = s('line', { y1: mg.t, y2: H - mg.b, style: 'stroke:var(--ink-3)', visibility: 'hidden' }, svg);
+  const tcross = s('line', { y1: 8, y2: TH - 8, style: 'stroke:var(--ink-3)', visibility: 'hidden' }, tsvg);
+  const dots = s('g', {}, svg);
+  const hit = s('rect', { x: mg.l, y: 0, width: W - mg.l - mg.r, height: H, fill: 'transparent' }, svg);
+  const thit = s('rect', { x: mg.l, y: 0, width: W - mg.l - mg.r, height: TH, fill: 'transparent' }, tsvg);
+  const move = ev => {
+    const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * (W / r.width);
+    const i = Math.max(i0, Math.min(i1 - 1, Math.round(i0 + (px - mg.l) / (W - mg.l - mg.r) * n - 0.5)));
+    const xi = x(i);
+    for (const c of [cross, tcross]) { c.setAttribute('x1', xi); c.setAttribute('x2', xi); c.setAttribute('visibility', 'visible'); }
+    dots.innerHTML = '';
+    const rows = [];
+    if (A[i] != null) { s('circle', { cx: xi, cy: y(A[i]), r: 4.5, 'stroke-width': 2, style: 'fill:var(--ink);stroke:var(--surface)' }, dots); }
+    for (const k of keys) {
+      const v = P[k][i]; if (v == null) continue;
+      s('circle', { cx: xi, cy: y(v), r: 4, 'stroke-width': 2, style: `fill:${col(MK[k])};stroke:var(--surface)` }, dots);
+      rows.push([k, v]);
+    }
+    const dt = new Date(T0 + i * 3600e3), dIdx = Math.floor(i / 24);
+    let html = `<div class="t-h">${WD[dt.getUTCDay()]} ${dmy(dt)}, ${pad(dt.getUTCHours())}:00 МСК${dayType(dIdx) === 1 ? ' · нерабочий день' : ''}</div><div class="t-r">`;
+    html += `<span>${swatch({ key: 'actual' }, 14).outerHTML}</span><span>Факт</span><span class="num">${A[i] != null ? nf0.format(A[i]) : '—'}</span><span></span>`;
+    rows.sort((a, b) => b[1] - a[1]);
+    for (const [k, v] of rows) {
+      const e = A[i] != null ? (v - A[i]) / A[i] * 100 : null;
+      html += `<span>${swatch(MK[k], 14).outerHTML}</span><span>${MK[k].short}</span><span class="num">${nf0.format(v)}</span><span class="num muted">${e != null ? signed(e, nf1) + ' %' : ''}</span>`;
+    }
+    html += `</div><div class="muted" style="margin-top:4px">Температура: прогноз ${D.temp_fcst[i] != null ? signed(D.temp_fcst[i], nf1) : '—'} °C, факт ${D.temp_act[i] != null ? signed(D.temp_act[i], nf1) : '—'} °C</div>`;
+    showTip(html, ev.clientX, ev.clientY);
+  };
+  const leave = () => { cross.setAttribute('visibility', 'hidden'); tcross.setAttribute('visibility', 'hidden'); dots.innerHTML = ''; hideTip(); };
+  for (const h of [hit, thit]) { h.addEventListener('pointermove', move); h.addEventListener('pointerleave', leave); }
+
+  box.replaceChildren(svg); tbox.replaceChildren(tsvg);
+  document.getElementById('week-title').textContent = `Неделя ${dmy(dayDate(d0))} – ${dmy(dayDate(d1 - 1))}`;
+  document.getElementById('week-date').value = iso(dayDate(d0));
+  const mask = Array.from({ length: ND }, () => true);
+  const ws = document.getElementById('window-stats'); ws.innerHTML = '<span class="muted">MAPE за неделю:</span>';
+  for (const k of keys) {
+    const r = metrics(k, mask, d0, d1); if (!r) continue;
+    const sp = document.createElement('span'); sp.appendChild(swatch(MK[k], 16));
+    sp.append(`${MK[k].short} — ${nf2.format(r.mape)} %`); ws.appendChild(sp);
+  }
+}
+
+// ---------- ошибка по месяцам ----------
+function renderMonthly() {
+  const box = document.getElementById('monthly-chart'), W = box.clientWidth || 560, H = 270;
+  const mg = { l: 40, r: 12, t: 12, b: 28 };
+  const keys = M.filter(m => state.models.has(m.key)).map(m => m.key);
+  const vals = {};
+  for (const k of keys) vals[k] = months.map(mk => metrics(k, dayKey.map(v => v === mk))?.mape ?? null);
+  const all = keys.flatMap(k => vals[k]).filter(v => v != null);
+  const yy = nice(0, Math.max(1, ...all) * 1.08, 5);
+  const x = j => mg.l + (j + 0.5) / months.length * (W - mg.l - mg.r);
+  const y = v => mg.t + (1 - v / yy.hi) * (H - mg.t - mg.b);
+  const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': 'MAPE по месяцам' });
+  const ax = s('g', { class: 'ax' }, svg);
+  for (const t of yy.ticks) {
+    s('line', { x1: mg.l, x2: W - mg.r, y1: y(t), y2: y(t), style: 'stroke:var(--grid)' }, svg);
+    s('text', { x: mg.l - 8, y: y(t) + 4, 'text-anchor': 'end' }, ax).textContent = nf1.format(t);
+  }
+  const step = W < 480 ? 2 : 1;
+  months.forEach((mk, j) => { if (j % step) return; const [yr, mm] = mk.split('-'); s('text', { x: x(j), y: H - 8, 'text-anchor': 'middle' }, ax).textContent = MON[+mm - 1] + (mm === '01' || j === 0 ? ` ${yr.slice(2)}` : ''); });
+  for (const k of keys) {
+    let dstr = ''; vals[k].forEach((v, j) => { if (v != null) dstr += (dstr ? 'L' : 'M') + x(j) + ',' + y(v); });
+    s('path', { d: dstr, fill: 'none', 'stroke-width': 2, 'stroke-dasharray': MK[k].dash || '', style: `stroke:${col(MK[k])}` }, svg);
+    vals[k].forEach((v, j) => { if (v != null) s('circle', { cx: x(j), cy: y(v), r: 3.5, 'stroke-width': 2, style: `fill:${col(MK[k])};stroke:var(--surface)` }, svg); });
+  }
+  if (!keys.length) s('text', { x: W / 2, y: H / 2, 'text-anchor': 'middle', style: 'font:13px var(--font-ui);fill:var(--ink-3)' }, svg).textContent = 'Выберите модели вверху страницы';
+  const cross = s('line', { y1: mg.t, y2: H - mg.b, style: 'stroke:var(--ink-3)', visibility: 'hidden' }, svg);
+  const hit = s('rect', { x: mg.l, y: 0, width: W - mg.l - mg.r, height: H, fill: 'transparent' }, svg);
+  hit.addEventListener('pointermove', ev => {
+    if (!keys.length) return;
+    const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * (W / r.width);
+    const j = Math.max(0, Math.min(months.length - 1, Math.floor((px - mg.l) / (W - mg.l - mg.r) * months.length)));
+    cross.setAttribute('x1', x(j)); cross.setAttribute('x2', x(j)); cross.setAttribute('visibility', 'visible');
+    const [yr, mm] = months[j].split('-');
+    const rows = keys.map(k => [k, vals[k][j]]).filter(r => r[1] != null).sort((a, b) => a[1] - b[1]);
+    showTip(`<div class="t-h">${MON_FULL[+mm - 1]} ${yr}</div><div class="t-r">` + rows.map(([k, v]) => `<span>${swatch(MK[k], 14).outerHTML}</span><span>${MK[k].short}</span><span class="num">${nf2.format(v)} %</span><span></span>`).join('') + '</div>', ev.clientX, ev.clientY);
+  });
+  hit.addEventListener('pointerleave', () => { cross.setAttribute('visibility', 'hidden'); hideTip(); });
+  box.replaceChildren(svg);
+}
+
+// ---------- календарь ----------
+const BINS = [0.5, 1, 1.5, 2.5];
+const binColor = v => `var(--h${1 + BINS.filter(b => v >= b).length})`;
+const heatSel = document.getElementById('heat-model');
+heatSel.innerHTML = M.map(m => `<option value="${m.key}">${m.name}</option>`).join('');
+heatSel.addEventListener('change', () => { state.heat = heatSel.value; renderHeat(); });
+document.getElementById('heat-legend').innerHTML = ['< 0,5 %', '0,5–1 %', '1–1,5 %', '1,5–2,5 %', '≥ 2,5 %'].map((t, j) => `<span><i style="background:var(--h${j + 1})"></i>${t}</span>`).join('') + '<span class="muted">· дни вне выбранного периода приглушены</span>';
+function renderHeat() {
+  const box = document.getElementById('heat-chart'), k = state.heat;
+  const off = (dayDate(0).getUTCDay() + 6) % 7, ncol = Math.ceil((ND + off) / 7);
+  const avail = (box.parentElement.clientWidth || 900) - 34;
+  const cs = Math.max(11, Math.min(18, Math.floor(avail / ncol) - 2)), gap = 2;
+  const W = 34 + ncol * (cs + gap), H = 18 + 7 * (cs + gap);
+  const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': 'Календарь ошибок по суткам' });
+  svg.style.width = W + 'px';
+  const ax = s('g', { class: 'ax' }, svg);
+  ['Пн', 'Ср', 'Пт', 'Вс'].forEach((t, j) => s('text', { x: 0, y: 18 + [0, 2, 4, 6][j] * (cs + gap) + cs - 2 }, ax).textContent = t);
+  const mask = periodMask(state.period), all = Array.from({ length: ND }, () => true);
+  for (let d = 0; d < ND; d++) {
+    const c = Math.floor((d + off) / 7), r = (d + off) % 7, dt = dayDate(d);
+    if (d === 0 || dt.getUTCDate() === 1) {  // подпись месяца — над первой полной неделей месяца
+      s('text', { x: 34 + (r === 0 ? c : c + 1) * (cs + gap), y: 11 }, ax).textContent = MON[dt.getUTCMonth()];
+    }
+    const m = metrics(k, all, d, d + 1);
+    const rect = s('rect', { x: 34 + c * (cs + gap), y: 18 + r * (cs + gap), width: cs, height: cs, rx: 3, class: 'heat-cell', style: `fill:${m ? binColor(m.mape) : 'var(--surface-2)'};opacity:${mask[d] ? 1 : 0.25}` }, svg);
+    if (dayType(d) === 1) s('circle', { cx: 34 + c * (cs + gap) + cs / 2, cy: 18 + r * (cs + gap) + cs / 2, r: 1.6, style: 'fill:var(--surface);pointer-events:none' }, svg);
+    rect.addEventListener('pointermove', ev => {
+      let e = 0, a = 0; for (let i = d * 24; i < d * 24 + 24; i++) if (A[i] != null && P[k][i] != null) { e += P[k][i] - A[i]; a += A[i]; }
+      showTip(`<div class="t-h">${WD[dt.getUTCDay()]} ${dmy(dt)}${dayType(d) === 1 ? ' · нерабочий день' : dayType(d) === 2 ? ' · сокращённый день' : ''}</div>` +
+        `<div>${MK[k].short}: MAPE <span class="num">${m ? nf2.format(m.mape) : '—'} %</span></div>` +
+        `<div class="muted">Ошибка по энергии за сутки: <span class="num">${a ? signed(e / a * 100, nf1) : '—'} %</span> · средняя температура ${dayTemp[d] != null ? signed(dayTemp[d], nf1) : '—'} °C</div>`, ev.clientX, ev.clientY);
+    });
+    rect.addEventListener('pointerleave', hideTip);
+    rect.addEventListener('click', () => { hideTip(); setWeek(d); document.getElementById('main-panel').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); });
+  }
+  box.replaceChildren(svg);
+}
+
+// ---------- рассеяние ----------
+function renderScatter() {
+  const box = document.getElementById('scatter-chart'), W = box.clientWidth || 560, H = 300;
+  const mg = { l: 56, r: 12, t: 12, b: 40 }, h = D.hist;
+  const testStart = iso(dayDate(0));
+  const xs = h.temp.filter(v => v != null), ys = h.cons.filter(v => v != null);
+  const xx = nice(Math.min(...xs), Math.max(...xs), 6), yy = nice(Math.min(...ys), Math.max(...ys), 5);
+  const x = v => mg.l + (v - xx.lo) / (xx.hi - xx.lo) * (W - mg.l - mg.r);
+  const y = v => mg.t + (1 - (v - yy.lo) / (yy.hi - yy.lo)) * (H - mg.t - mg.b);
+  const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': 'Среднесуточное потребление в зависимости от температуры' });
+  const ax = s('g', { class: 'ax' }, svg);
+  for (const t of yy.ticks) { s('line', { x1: mg.l, x2: W - mg.r, y1: y(t), y2: y(t), style: 'stroke:var(--grid)' }, svg); s('text', { x: mg.l - 8, y: y(t) + 4, 'text-anchor': 'end' }, ax).textContent = nf0.format(t); }
+  for (const t of xx.ticks) { s('line', { x1: x(t), x2: x(t), y1: mg.t, y2: H - mg.b, style: `stroke:${t === 0 ? 'var(--line)' : 'var(--grid)'}` }, svg); s('text', { x: x(t), y: H - mg.b + 16, 'text-anchor': 'middle' }, ax).textContent = (t > 0 ? '+' : t < 0 ? '−' : '') + Math.abs(t); }
+  s('text', { x: (mg.l + W - mg.r) / 2, y: H - 4, 'text-anchor': 'middle', class: 'lbl' }, ax).textContent = 'Среднесуточная температура, °C';
+  s('text', { x: 0, y: mg.t - 2, class: 'lbl' }, ax).textContent = 'МВт';
+  const pts = [], g1 = s('g', {}, svg), g2 = s('g', {}, svg);
+  h.dates.forEach((dstr, j) => {
+    const t = h.temp[j], c = h.cons[j]; if (t == null || c == null) return;
+    const test = dstr >= testStart, px = x(t), py = y(c);
+    s('circle', { cx: px, cy: py, r: 2.4, style: test ? 'fill:var(--ink);opacity:.8' : 'fill:var(--c0);opacity:.45' }, test ? g2 : g1);
+    pts.push([px, py, dstr, t, c, test]);
+  });
+  const ring = s('circle', { r: 5.5, 'stroke-width': 2, fill: 'none', style: 'stroke:var(--focus)', visibility: 'hidden' }, svg);
+  const hit = s('rect', { x: mg.l, y: mg.t, width: W - mg.l - mg.r, height: H - mg.t - mg.b, fill: 'transparent' }, svg);
+  hit.addEventListener('pointermove', ev => {
+    const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * (W / r.width), py = (ev.clientY - r.top) * (H / r.height);
+    let best = null, bd = 196;
+    for (const p of pts) { const dd = (p[0] - px) ** 2 + (p[1] - py) ** 2; if (dd < bd) { bd = dd; best = p; } }
+    if (!best) { ring.setAttribute('visibility', 'hidden'); hideTip(); return; }
+    ring.setAttribute('cx', best[0]); ring.setAttribute('cy', best[1]); ring.setAttribute('visibility', 'visible');
+    const [yy2, mm2, dd2] = best[2].split('-');
+    showTip(`<div class="t-h">${dd2}.${mm2}.${yy2}${best[5] ? ' · тестовый год' : ''}</div><div>Потребление <span class="num">${nf0.format(best[4])} МВт</span></div><div>Температура <span class="num">${signed(best[3], nf1)} °C</span></div>`, ev.clientX, ev.clientY);
+  });
+  hit.addEventListener('pointerleave', () => { ring.setAttribute('visibility', 'hidden'); hideTip(); });
+  box.replaceChildren(svg);
+  const [hy, hm, hd] = h.start.split('-');
+  document.getElementById('scatter-sub').textContent = `Среднесуточные значения, ${hd}.${hm}.${hy} – ${dmy(last)}, ${nf0.format(pts.length)} суток`;
+  document.getElementById('scatter-legend').innerHTML = `<span><svg width="10" height="10"><circle cx="5" cy="5" r="4" style="fill:var(--c0)"/></svg> обучающие годы</span><span><svg width="10" height="10"><circle cx="5" cy="5" r="4" style="fill:var(--ink)"/></svg> тестовый год</span>`;
+}
+
+// ---------- важность признаков ----------
+function renderImportance() {
+  const el = document.getElementById('importance'), mx = Math.max(...D.importance.map(r => r[1]));
+  el.innerHTML = '<div class="hgroup">' + D.importance.map(([name, v]) =>
+    `<div class="hrow"><span>${name}</span><div class="htrack"><span class="hbar" style="width:calc(${v / mx} * (100% - 52px));background:var(--c1)"></span><span class="hval">${nf1.format(v)}</span></div></div>`).join('') + '</div>';
+}
+
+// ---------- связка ----------
+function renderPeriod() {
+  for (const b of periodsEl.querySelectorAll('.chip')) b.setAttribute('aria-pressed', String(b.dataset.period === state.period));
+  renderKPIs(); renderTable(); renderHeat();
+}
+function renderModels() {
+  for (const m of M) document.getElementById('model-' + m.key).setAttribute('aria-pressed', String(state.models.has(m.key)));
+  renderMain(); renderMonthly();
+}
+document.getElementById('prev').addEventListener('click', () => setWeek(state.week - 7));
+document.getElementById('next').addEventListener('click', () => setWeek(state.week + 7));
+document.getElementById('week-date').min = iso(dayDate(0));
+document.getElementById('week-date').max = iso(dayDate(ND - 1));
+document.getElementById('week-date').addEventListener('change', e => { const v = e.target.value; if (!v) return; const [yy, mm, dd] = v.split('-').map(Number); setWeek(Math.round((Date.UTC(yy, mm - 1, dd) - T0) / 864e5)); });
+function coldestWeek() { let best = 0, bv = Infinity; for (let d = 0; d + 7 <= ND; d++) { let sum = 0; for (let j = d; j < d + 7; j++) sum += dayTemp[j] ?? 0; if (sum < bv) { bv = sum; best = d; } } return best; }
+document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+  const p = b.dataset.preset;
+  if (p === 'cold') setWeek(coldestWeek());
+  if (p === 'ny') { const d = Math.round((Date.UTC(2025, 11, 31) - T0) / 864e5); setWeek(d >= 0 && d < ND ? d + 1 : 0); }
+  if (p === 'worst') {
+    const k = [...state.models][0] || bestKey(allMetrics('all').m), all = Array.from({ length: ND }, () => true);
+    let best = 0, bv = -1; for (let d = 0; d + 7 <= ND; d++) { const r = metrics(k, all, d, d + 7); if (r && r.mape > bv) { bv = r.mape; best = d; } }
+    state.week = best; renderMain();
+  }
+}));
+
+state.heat = bestKey(allMetrics('all').m); heatSel.value = state.heat;
+state.week = 0; setWeek(coldestWeek());
+renderPeriod(); renderModels(); renderScatter(); renderImportance();
+
+document.getElementById('copy').addEventListener('click', e => {
+  const b = e.currentTarget, el = document.getElementById('mail');
+  const sel = () => getSelection().selectAllChildren(el);
+  try { navigator.clipboard.writeText(el.textContent).then(() => { b.textContent = 'Скопировано'; setTimeout(() => { b.textContent = 'Скопировать'; }, 1600); }, sel); } catch { sel(); }
+});
+let raf = 0;
+new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { renderMain(); renderMonthly(); renderHeat(); renderScatter(); }); })
+  .observe(document.querySelector('.wrap'));
+})();
+</script>

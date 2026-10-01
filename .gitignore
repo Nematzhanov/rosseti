@@ -1,0 +1,19 @@
+# окружения и зависимости
+.venv/
+__pycache__/
+deck/node_modules/
+.DS_Store
+
+# веса моделей (сотни МБ) — скачиваются/обучаются скриптами
+checkpoints/
+
+# сырые и крупные данные: воспроизводятся download.py и weather/download_weather.py
+raw/
+weather/*_points_hourly_*.csv
+
+# временные файлы проверки и черновые сборки
+deck/qa/
+deck/raw*.pptx
+deck/Прогноз потребления ОЭС Северо-Запада.pptx
+results/log_*.txt
+*.log

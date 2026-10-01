@@ -1,0 +1,277 @@
+<meta charset="utf-8">
+<title>Прогноз потребления ОЭС Северо-Запада</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: одна мягкая поверхность; сверху вывод, в центре неделя «факт/прогноз», внизу сравнение и автор */
+:root {
+  --bg: #e6ebf1; --ink: #27303d; --ink-2: #5f6d80; --ink-3: #8c98a8;
+  --sh-d: #b8c3d1; --sh-l: #ffffff; --accent: #2563c9; --accent-2: #12a3b5; --track: #dde3ea; --shade: #dfe5ec;
+  --font: "Golos Text", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --r: 22px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #262b33; --ink: #e7ebf0; --ink-2: #aab4c2; --ink-3: #7f8a99;
+    --sh-d: #1a1e24; --sh-l: #323843; --accent: #6b9bf0; --accent-2: #3cc3d2; --track: #22262d; --shade: #2c323b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #262b33; --ink: #e7ebf0; --ink-2: #aab4c2; --ink-3: #7f8a99;
+  --sh-d: #1a1e24; --sh-l: #323843; --accent: #6b9bf0; --accent-2: #3cc3d2; --track: #22262d; --shade: #2c323b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.55; }
+.wrap { max-width: 1040px; margin: 0 auto; padding-inline: 24px; padding-block: 48px 40px; display: grid; gap: 28px; }
+h1, h2, p { margin: 0; }
+h1 { font-size: clamp(28px, 4.4vw, 44px); line-height: 1.1; letter-spacing: -0.02em; font-weight: 700; text-wrap: balance; }
+h2 { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+.muted { color: var(--ink-2); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+/* неоморфные поверхности */
+.raised { background: var(--bg); border-radius: var(--r); box-shadow: 8px 8px 18px var(--sh-d), -8px -8px 18px var(--sh-l); }
+.inset { background: var(--bg); border-radius: var(--r); box-shadow: inset 5px 5px 10px var(--sh-d), inset -5px -5px 10px var(--sh-l); }
+.btn { font: inherit; font-size: 14px; color: var(--ink-2); background: var(--bg); border: 0; border-radius: 999px; padding: 9px 16px; cursor: pointer;
+  box-shadow: 4px 4px 9px var(--sh-d), -4px -4px 9px var(--sh-l); transition: box-shadow .15s, color .15s; }
+.btn:hover { color: var(--ink); }
+.btn:active, .btn[aria-pressed="true"] { color: var(--accent); box-shadow: inset 3px 3px 7px var(--sh-d), inset -3px -3px 7px var(--sh-l); }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+
+/* шапка */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: center; }
+.eyebrow { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); padding: 7px 14px; border-radius: 999px; margin-bottom: 18px; }
+.lede { margin-top: 14px; max-width: 56ch; color: var(--ink-2); font-size: 16px; }
+.orb { width: 230px; height: 230px; border-radius: 50%; display: grid; place-items: center; }
+.orb .well { width: 168px; height: 168px; border-radius: 50%; display: grid; place-content: center; text-align: center; gap: 2px; }
+.orb .big { font-family: var(--mono); font-size: 38px; font-weight: 500; color: var(--accent); letter-spacing: -0.03em; }
+.orb .cap { font-size: 12.5px; color: var(--ink-2); max-width: 14ch; line-height: 1.3; }
+@media (max-width: 700px) { .hero { grid-template-columns: minmax(0, 1fr); } .orb { width: 190px; height: 190px; } .orb .well { width: 138px; height: 138px; } .orb .big { font-size: 30px; } }
+
+/* три вывода */
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+.fact { padding: 22px 24px; display: grid; gap: 6px; }
+.fact .v { font-family: var(--mono); font-size: 30px; font-weight: 500; letter-spacing: -0.02em; }
+.fact .k { font-size: 14px; color: var(--ink-2); }
+@media (max-width: 760px) { .facts { grid-template-columns: minmax(0, 1fr); } }
+
+/* график недели */
+.panel { padding: 26px 28px; display: grid; gap: 18px; min-width: 0; }
+.panel-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px 20px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 13.5px; color: var(--ink-2); }
+.legend i { display: inline-block; width: 24px; height: 0; border-top: 3px solid var(--ink); vertical-align: middle; margin-right: 8px; }
+.legend i.f { border-top: 3px dashed var(--accent); }
+.legend i.n { width: 14px; height: 10px; border: 0; background: var(--shade); border-radius: 3px; }
+.chart { position: relative; padding: 14px 10px 8px; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.ax text { font: 11.5px var(--mono); fill: var(--ink-3); }
+.week-mape { font-size: 14px; color: var(--ink-2); }
+.week-mape b { color: var(--accent); font-family: var(--mono); font-weight: 500; }
+
+/* сравнение */
+.bars { display: grid; gap: 16px; }
+.bar { display: grid; grid-template-columns: minmax(150px, 30%) minmax(0, 1fr) 64px; gap: 16px; align-items: center; font-size: 14.5px; }
+.track { height: 16px; border-radius: 999px; padding: 3px; }
+.fill { height: 100%; border-radius: 999px; background: var(--ink-3); opacity: .55; }
+.bar.best .fill { background: linear-gradient(90deg, var(--accent), var(--accent-2)); opacity: 1; }
+.bar.best { font-weight: 600; }
+.bar .num { text-align: right; }
+@media (max-width: 560px) { .bar { grid-template-columns: minmax(0, 1fr) 56px; } .bar .track { grid-column: 1 / -1; grid-row: 2; } }
+
+/* как устроено */
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+.step { padding: 22px 24px; display: grid; gap: 8px; align-content: start; }
+.step .n { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-family: var(--mono); color: var(--accent); }
+.step p { color: var(--ink-2); font-size: 14px; }
+@media (max-width: 760px) { .steps { grid-template-columns: minmax(0, 1fr); } }
+
+/* автор */
+.author { padding: 28px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 26px; align-items: center; }
+.avatar { width: 92px; height: 92px; border-radius: 50%; display: grid; place-items: center; font-size: 28px; font-weight: 700; color: var(--accent); }
+.author h2 { font-size: 21px; }
+.author .role { color: var(--ink-2); margin-top: 4px; }
+.links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.link { display: inline-flex; align-items: center; gap: 9px; text-decoration: none; }
+.link svg { width: 18px; height: 18px; fill: currentColor; }
+.email { display: inline-flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 14px; color: var(--ink-2); }
+.email code { font-family: var(--mono); color: var(--ink); user-select: all; }
+@media (max-width: 560px) { .author { grid-template-columns: minmax(0, 1fr); } }
+footer { text-align: center; font-size: 12.5px; color: var(--ink-3); padding-top: 8px; }
+#tip { position: fixed; z-index: 10; pointer-events: none; padding: 10px 12px; border-radius: 14px; font-size: 13px; background: var(--bg);
+  box-shadow: 6px 6px 14px var(--sh-d), -6px -6px 14px var(--sh-l); }
+#tip .h { font-weight: 600; margin-bottom: 3px; }
+@media (max-width: 480px) { .wrap { padding-inline: 16px; } .panel { padding: 20px 16px; } }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <span class="eyebrow raised">ОЭС Северо-Запада · прогноз на сутки</span>
+      <h1>Сколько электроэнергии регион потребит завтра</h1>
+      <p class="lede">Нейросеть Chronos-2, дообученная на данных Системного оператора и прогнозе погоды, предсказывает почасовое потребление на следующие сутки. Проверено на целом годе — каждый прогноз сделан накануне в 09:00, как у диспетчера.</p>
+    </div>
+    <div class="orb raised" aria-label="Средняя ошибка прогноза">
+      <div class="well inset"><span class="big num" id="orb-v"></span><span class="cap">средняя ошибка за год</span></div>
+    </div>
+  </header>
+
+  <section class="facts" id="facts" aria-label="Главные результаты"></section>
+
+  <section class="panel raised" aria-labelledby="week-h">
+    <div class="panel-head">
+      <div><h2 id="week-h">Факт и прогноз за неделю</h2><p class="muted" id="week-t"></p></div>
+      <div class="controls">
+        <button class="btn" id="prev" aria-label="Предыдущая неделя">←</button>
+        <button class="btn" data-preset="cold" id="p-cold">Самая холодная</button>
+        <button class="btn" data-preset="ny" id="p-ny">Новый год</button>
+        <button class="btn" data-preset="summer" id="p-summer">Лето</button>
+        <button class="btn" id="next" aria-label="Следующая неделя">→</button>
+      </div>
+    </div>
+    <div class="chart inset" id="chart"></div>
+    <div class="panel-head">
+      <div class="legend"><span><i></i>факт</span><span><i class="f"></i>прогноз Chronos-2</span><span><i class="n"></i>выходные и праздники</span></div>
+      <p class="week-mape" id="week-m"></p>
+    </div>
+  </section>
+
+  <section class="panel raised" aria-labelledby="cmp-h">
+    <div><h2 id="cmp-h">С чем сравнивали</h2><p class="muted">Средняя ошибка за год, MAPE — чем короче полоса, тем точнее</p></div>
+    <div class="bars" id="bars"></div>
+  </section>
+
+  <section class="steps" aria-label="Как устроен прогноз">
+    <div class="step raised"><span class="n inset">1</span><h2>Данные</h2><p>Почасовое потребление ОЭС Северо-Запада с 2021 года (СО ЕЭС), погода в 9 городах региона, производственный календарь.</p></div>
+    <div class="step raised"><span class="n inset">2</span><h2>Модель</h2><p>Предобученная нейросеть Chronos-2 от Amazon, дообученная на наших данных. Погода и праздники подаются как подсказки.</p></div>
+    <div class="step raised"><span class="n inset">3</span><h2>Честная проверка</h2><p>Год, который модель не видела. Только то, что известно накануне: факт до 08:00 и прогноз погоды на завтра.</p></div>
+  </section>
+
+  <section class="author raised" aria-labelledby="me">
+    <div class="avatar inset" aria-hidden="true">МН</div>
+    <div>
+      <h2 id="me">Мухаммадзохид Нематжанов</h2>
+      <p class="role">Студент Политехнического института НовГУ имени Ярослава Мудрого, Великий Новгород. Автор исследования: данные, модели, этот сайт.</p>
+      <div class="links">
+        <a class="btn link" href="https://github.com/Nematzhanov" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>GitHub</a>
+        <a class="btn link" href="https://t.me/nematzhonov" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.9 4.3 18.7 19.4c-.24 1.06-.87 1.32-1.76.82l-4.87-3.59-2.35 2.26c-.26.26-.48.48-.98.48l.35-4.96 9.03-8.16c.39-.35-.09-.55-.61-.2L6.35 13.07l-4.8-1.5c-1.04-.33-1.06-1.04.22-1.54l18.76-7.23c.87-.32 1.63.2 1.37 1.5Z"/></svg>Telegram</a>
+        <a class="btn link" href="https://www.instagram.com/nematzhanov_" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0 8.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4ZM17.3 5.5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4ZM12 2.2c-2.66 0-3 .01-4.04.06-1.05.05-1.76.21-2.39.46a4.8 4.8 0 0 0-1.74 1.13A4.8 4.8 0 0 0 2.7 5.6c-.25.62-.41 1.34-.46 2.38C2.2 9.03 2.2 9.36 2.2 12s.01 2.97.06 4.02c.05 1.04.21 1.76.46 2.38.25.65.59 1.2 1.13 1.74.55.55 1.1.88 1.74 1.13.63.25 1.34.41 2.39.46 1.04.05 1.38.06 4.03.06s2.99-.01 4.03-.06c1.05-.05 1.76-.21 2.39-.46a4.8 4.8 0 0 0 1.74-1.13 4.8 4.8 0 0 0 1.13-1.74c.25-.62.41-1.34.46-2.38.05-1.05.06-1.38.06-4.02s-.01-2.97-.06-4.02c-.05-1.04-.21-1.76-.46-2.38a4.8 4.8 0 0 0-1.13-1.74 4.8 4.8 0 0 0-1.74-1.13c-.63-.25-1.34-.41-2.39-.46C15 2.21 14.66 2.2 12 2.2Zm0 1.8c2.6 0 2.91.01 3.94.06.95.04 1.47.2 1.81.33.46.18.78.39 1.12.73.34.34.55.66.73 1.12.13.34.29.86.33 1.81.05 1.03.06 1.34.06 3.95s-.01 2.92-.06 3.95c-.04.95-.2 1.47-.33 1.81-.18.46-.39.78-.73 1.12-.34.34-.66.55-1.12.73-.34.13-.86.29-1.81.33-1.03.05-1.34.06-3.94.06s-2.91-.01-3.94-.06c-.95-.04-1.47-.2-1.81-.33a3 3 0 0 1-1.12-.73 3 3 0 0 1-.73-1.12c-.13-.34-.29-.86-.33-1.81C4.01 14.92 4 14.61 4 12s.01-2.92.06-3.95c.04-.95.2-1.47.33-1.81.18-.46.39-.78.73-1.12.34-.34.66-.55 1.12-.73.34-.13.86-.29 1.81-.33C9.09 4.01 9.4 4 12 4Z"/></svg>Instagram</a>
+      </div>
+      <p class="email">Почта: <code id="mail">nematzhanov.m@gmail.com</code><button class="btn" id="copy" style="padding:6px 12px">Скопировать</button></p>
+    </div>
+  </section>
+  <footer id="foot"></footer>
+</div>
+<div id="tip" hidden></div>
+
+<script type="application/json" id="data">/*__DATA__*/null</script>
+<script>
+(() => {
+const D = JSON.parse(document.getElementById('data').textContent);
+const NS = 'http://www.w3.org/2000/svg', A = D.actual, P = D.pred, ND = Math.floor(A.length / 24);
+const [y0, m0, d0] = D.start.split('-').map(Number), T0 = Date.UTC(y0, m0 - 1, d0);
+const WD = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+const pad = n => String(n).padStart(2, '0');
+const day = d => new Date(T0 + d * 864e5);
+const dm = dt => `${pad(dt.getUTCDate())}.${pad(dt.getUTCMonth() + 1)}`;
+const nf0 = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
+const f2 = v => v.toFixed(2).replace('.', ',');
+const s = (tag, at = {}, p) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); if (p) p.appendChild(e); return e; };
+
+// шапка и выводы
+document.getElementById('orb-v').textContent = f2(D.best['MAPE_%']) + ' %';
+const coldStart = (() => { let b = 0, bv = Infinity; for (let d = 0; d + 7 <= ND; d++) { let t = 0; for (let j = d; j < d + 7; j++) t += D.day_temp[j] ?? 0; if (t < bv) { bv = t; b = d; } } return b; })();
+const wkMape = d0 => { let e = 0, n = 0; for (let i = d0 * 24; i < Math.min(A.length, (d0 + 7) * 24); i++) if (A[i] != null && P[i] != null) { e += Math.abs(P[i] - A[i]) / A[i]; n++; } return n ? e / n * 100 : NaN; };
+const facts = [
+  [`в ${(D.naive / D.best['MAPE_%']).toFixed(1).replace('.', ',')} раза`, 'точнее, чем простое правило «как неделю назад»'],
+  [`−${Math.round((1 - D.lgb_w / D.lgb_now) * 100)} %`, 'ошибки даёт учёт прогноза погоды'],
+  [`${nf0.format(D.best.MAE_MW)} МВт`, 'средняя ошибка в час — при нагрузке 9–16 тысяч МВт'],
+];
+document.getElementById('facts').innerHTML = facts.map(([v, k]) => `<div class="fact raised"><span class="v">${v}</span><span class="k">${k}</span></div>`).join('');
+document.getElementById('foot').textContent = `Данные: АО «СО ЕЭС», Open-Meteo, isdayoff.ru · тест ${dm(day(0))}.${day(0).getUTCFullYear()} – ${dm(day(ND - 1))}.${day(ND - 1).getUTCFullYear()} · обновлено ${D.built}`;
+
+// сравнение
+const mx = Math.max(...D.bars.map(b => b[1]));
+document.getElementById('bars').innerHTML = D.bars.map(([name, v], i) =>
+  `<div class="bar${i === 0 ? ' best' : ''}"><span>${name}</span><div class="track inset"><div class="fill" style="width:${v / mx * 100}%"></div></div><span class="num">${f2(v)} %</span></div>`).join('');
+
+// график недели
+let week = coldStart;
+const tip = document.getElementById('tip');
+function setWeek(d) {
+  const dt = day(Math.max(0, Math.min(ND - 1, d)));
+  week = Math.max(0, Math.min(ND - 7, d - ((dt.getUTCDay() + 6) % 7)));
+  draw();
+}
+function draw() {
+  const box = document.getElementById('chart'), W = box.clientWidth - 20 || 800, H = W < 560 ? 240 : 300;
+  const mg = { l: 54, r: 8, t: 10, b: 28 }, i0 = week * 24, n = 168, iw = W - mg.l - mg.r;
+  const x = i => mg.l + (i - i0 + 0.5) / n * iw;
+  let lo = Infinity, hi = -Infinity;
+  for (let i = i0; i < i0 + n; i++) for (const v of [A[i], P[i]]) if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  const step = (hi - lo) > 3000 ? 1000 : 500, ylo = Math.floor(lo / step) * step, yhi = Math.ceil(hi / step) * step;
+  const y = v => mg.t + (1 - (v - ylo) / (yhi - ylo)) * (H - mg.t - mg.b);
+  const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': 'Почасовое потребление за неделю: факт и прогноз' });
+  const ax = s('g', { class: 'ax' }, svg);
+  for (let d = 0; d < 7; d++) {
+    const xa = mg.l + d * 24 / n * iw, dt = day(week + d);
+    if (D.day_type[week + d] === 1) s('rect', { x: xa, y: mg.t, width: 24 / n * iw, height: H - mg.t - mg.b, rx: 6, style: 'fill:var(--shade)' }, svg);
+    s('text', { x: xa + 12 / n * iw, y: H - 8, 'text-anchor': 'middle' }, ax).textContent = W < 520 ? WD[dt.getUTCDay()] : `${WD[dt.getUTCDay()]} ${dm(dt)}`;
+  }
+  for (let v = ylo; v <= yhi; v += step) {
+    s('line', { x1: mg.l, x2: W - mg.r, y1: y(v), y2: y(v), style: 'stroke:var(--sh-d);stroke-opacity:.6' }, svg);
+    s('text', { x: mg.l - 8, y: y(v) + 4, 'text-anchor': 'end' }, ax).textContent = nf0.format(v);
+  }
+  const path = arr => { let p = '', pen = false; for (let i = i0; i < i0 + n; i++) { if (arr[i] == null) { pen = false; continue; } p += (pen ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(arr[i]).toFixed(1); pen = true; } return p; };
+  s('path', { d: path(A), fill: 'none', 'stroke-width': 2.6, 'stroke-linejoin': 'round', style: 'stroke:var(--ink)' }, svg);
+  s('path', { d: path(P), fill: 'none', 'stroke-width': 2.2, 'stroke-dasharray': '6 4', 'stroke-linejoin': 'round', style: 'stroke:var(--accent)' }, svg);
+  const cross = s('line', { y1: mg.t, y2: H - mg.b, style: 'stroke:var(--ink-3)', visibility: 'hidden' }, svg);
+  const dA = s('circle', { r: 4.5, style: 'fill:var(--ink);stroke:var(--bg);stroke-width:2', visibility: 'hidden' }, svg);
+  const dP = s('circle', { r: 4.5, style: 'fill:var(--accent);stroke:var(--bg);stroke-width:2', visibility: 'hidden' }, svg);
+  const hit = s('rect', { x: mg.l, y: 0, width: iw, height: H, fill: 'transparent' }, svg);
+  hit.addEventListener('pointermove', ev => {
+    const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * (W / r.width);
+    const i = Math.max(i0, Math.min(i0 + n - 1, Math.round(i0 + (px - mg.l) / iw * n - 0.5)));
+    for (const [el, v] of [[dA, A[i]], [dP, P[i]]]) { if (v == null) continue; el.setAttribute('cx', x(i)); el.setAttribute('cy', y(v)); el.setAttribute('visibility', 'visible'); }
+    cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.setAttribute('visibility', 'visible');
+    const dt = new Date(T0 + i * 36e5), e = A[i] && P[i] ? (P[i] - A[i]) / A[i] * 100 : null;
+    tip.innerHTML = `<div class="h">${WD[dt.getUTCDay()]} ${dm(dt)}, ${pad(dt.getUTCHours())}:00</div>Факт <span class="num">${A[i] != null ? nf0.format(A[i]) : '—'}</span> МВт<br>Прогноз <span class="num">${P[i] != null ? nf0.format(P[i]) : '—'}</span> МВт${e != null ? ` <span class="muted">(${e > 0 ? '+' : '−'}${Math.abs(e).toFixed(1).replace('.', ',')} %)</span>` : ''}`;
+    tip.hidden = false;
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    tip.style.left = Math.max(8, Math.min(innerWidth - tw - 8, ev.clientX + 16)) + 'px';
+    tip.style.top = Math.max(8, Math.min(innerHeight - th - 8, ev.clientY + 16)) + 'px';
+  });
+  hit.addEventListener('pointerleave', () => { tip.hidden = true; for (const el of [cross, dA, dP]) el.setAttribute('visibility', 'hidden'); });
+  box.replaceChildren(svg);
+  const a = day(week), b = day(week + 6), t = D.day_temp.slice(week, week + 7).filter(v => v != null);
+  const tm = t.reduce((p, c) => p + c, 0) / t.length;
+  document.getElementById('week-t').textContent = `${dm(a)} – ${dm(b)}.${b.getUTCFullYear()} · средняя температура ${tm > 0 ? '+' : tm < 0 ? '−' : ''}${Math.abs(tm).toFixed(1).replace('.', ',')} °C`;
+  document.getElementById('week-m').innerHTML = `Ошибка прогноза за эту неделю: <b>${f2(wkMape(week))} %</b>`;
+  const presets = { cold: coldStart, ny: nyStart, summer: summerStart };
+  for (const [k, v] of Object.entries(presets)) document.getElementById('p-' + k).setAttribute('aria-pressed', String(v === week));
+}
+const idx = (y, m, d) => Math.round((Date.UTC(y, m - 1, d) - T0) / 864e5);
+const monday = d => d - ((day(d).getUTCDay() + 6) % 7);
+const nyStart = Math.max(0, monday(idx(y0 + (m0 > 1 ? 1 : 0), 1, 1)));
+const summerStart = Math.max(0, Math.min(ND - 7, monday(idx(y0 + (m0 > 7 ? 1 : 0), 7, 15))));
+document.getElementById('prev').addEventListener('click', () => setWeek(week - 7));
+document.getElementById('next').addEventListener('click', () => setWeek(week + 7));
+document.getElementById('p-cold').addEventListener('click', () => { week = coldStart; draw(); });
+document.getElementById('p-ny').addEventListener('click', () => { week = nyStart; draw(); });
+document.getElementById('p-summer').addEventListener('click', () => { week = summerStart; draw(); });
+document.getElementById('copy').addEventListener('click', e => {
+  const b = e.currentTarget, mail = document.getElementById('mail').textContent;
+  const done = () => { b.textContent = 'Скопировано'; setTimeout(() => { b.textContent = 'Скопировать'; }, 1600); };
+  try { navigator.clipboard.writeText(mail).then(done, () => { getSelection().selectAllChildren(document.getElementById('mail')); }); }
+  catch { getSelection().selectAllChildren(document.getElementById('mail')); }
+});
+draw();
+let raf = 0;
+new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(draw); }).observe(document.getElementById('chart'));
+})();
+</script>
