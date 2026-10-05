@@ -17,3 +17,5 @@ deck/raw*.pptx
 deck/Прогноз потребления ОЭС Северо-Запада.pptx
 results/log_*.txt
 *.log
+gui/out/
+weather/recent_forecast_weighted.csv
