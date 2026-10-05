@@ -20,6 +20,7 @@ const f2 = v => v.toFixed(2).replace('.', ',');
 const Y = D.year, S = D.seasons, ST = D.stats, BF = D.best_ft, BF_LORA = BF.includes('lora');
 const BF_NAME = BF_LORA ? 'Chronos-2 после дообучения LoRA' : 'Chronos-2 после полного дообучения';
 const anim = {};
+const SCRIPT = JSON.parse(fs.readFileSync(path.join(__dirname, 'script.json'), 'utf8'));  // сценарий выступления → заметки докладчика
 let uid = 0;
 
 const KEEP = process.env.KEEP ? process.env.KEEP.split(',').map(Number) : null;  // отладка: собрать часть слайдов
@@ -29,6 +30,8 @@ function newSlide() {
   if (KEEP && !KEEP.includes(n)) return { _n: n, addText() {}, addShape() {}, addImage() {}, addChart() {}, addNotes() {} };
   const s = pres.addSlide();
   s._n = n;
+  const addNotes = s.addNotes.bind(s);
+  s.addNotes = t => addNotes(SCRIPT[n] || t);
   s.background = { color: C.BG };
   return s;
 }
