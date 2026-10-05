@@ -98,9 +98,12 @@ def main(src: str, dst: str, flags=()):
             report.append(f"слайд {n}: групп анимации {len(groups)}")
         if re.fullmatch(r"ppt/charts/chart\d+\.xml", name) and "nochartfix" not in flags:
             xml = files[name].decode("utf-8")
+            if "<c:scatterChart>" in xml:  # подписи осей — у края графика, а не посередине (ось потребления проходит через 0 °C)
+                xml, kk = re.subn(r'<c:tickLblPos val="nextTo"/>', '<c:tickLblPos val="low"/>', xml)
+                report.append(f"{name}: подписи осей перенесены к краю ({kk})")
             new, k = re.subn(r'<c:pt idx="\d+"><c:v></c:v></c:pt>', "", xml)
+            files[name] = new.encode("utf-8")
             if k:
-                files[name] = new.encode("utf-8")
                 report.append(f"{name}: убрано пустых точек {k}")
     order = ["[Content_Types].xml"] + sorted(n for n in files if n != "[Content_Types].xml")
     with zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as z:
