@@ -317,7 +317,7 @@ section('02', 1, 'Данные и модели', 'Откуда данные, к�
     { name: 'Температура', values: pts.map(p => p[0]) },
     { name: 'Потребление', values: pts.map(p => p[1]) },
   ], {
-    x: 0.8, y: 1.9, w: 7.7, h: 4.75, objectName: ch, lineSize: 0, lineDataSymbol: 'circle', lineDataSymbolSize: 4,
+    x: 0.8, y: 1.9, w: 7.7, h: 4.75, objectName: ch, lineSize: 0, lineDataSymbol: 'circle', lineDataSymbolSize: 3,
     chartColors: [C.ACC], showLegend: false,
     showValAxisTitle: true, valAxisTitle: 'Потребление, МВт', valAxisTitleFontSize: 11, valAxisTitleColor: C.MUTED,
     showCatAxisTitle: true, catAxisTitle: 'Среднесуточная температура, °C', catAxisTitleFontSize: 11, catAxisTitleColor: C.MUTED,
