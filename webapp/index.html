@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Прогноз потребления — ОЭС Северо-Запада</title>
+<style>
+/* Тот же дизайн, что у сайта проекта и Swing-окна: светлый фон, белые карточки, таблетки, сегменты */
+:root {
+  --bg: #f5f5f7; --card: #fff; --ink: #1d1d1f; --ink-2: #6e6e73; --ink-3: #86868b; --accent: #0071e3; --fill: #f0f0f3; --line: #e8e8ed; --good: #1e9e5a; --band: rgba(0,113,227,.14);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #000; --card: #1c1c1e; --ink: #f5f5f7; --ink-2: #a1a1a6; --ink-3: #86868b; --accent: #2997ff; --fill: #2c2c2e; --line: #38383a; --good: #30d158; --band: rgba(41,151,255,.18); color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 40px 28px 28px; display: grid; gap: 18px; }
+.head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px; }
+.eyebrow { color: var(--accent); font-weight: 600; font-size: 13px; }
+h1 { margin: 6px 0 4px; font-size: clamp(30px, 4.5vw, 40px); font-weight: 700; letter-spacing: -0.03em; }
+.sub { color: var(--ink-2); font-size: 14px; margin: 0; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.card { background: var(--card); border-radius: 20px; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 6px 18px rgba(0,0,0,.04); }
+.pill { border: 0; font: inherit; font-size: 14px; border-radius: 999px; padding: 8px 18px; cursor: pointer; background: var(--fill); color: var(--ink); }
+.pill:hover { background: var(--line); }
+.pill.primary { background: var(--accent); color: #fff; font-weight: 600; }
+.pill.primary:hover { filter: brightness(1.06); }
+.pill:disabled { opacity: .5; cursor: default; }
+.pill.round { padding: 8px 13px; }
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 2px; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; padding: 12px 18px; }
+.group { display: flex; align-items: center; gap: 10px; }
+.cap { color: var(--ink-2); font-size: 13px; }
+.date { font-weight: 700; min-width: 100px; text-align: center; font-variant-numeric: tabular-nums; }
+.seg { display: inline-flex; background: var(--fill); border-radius: 999px; padding: 3px; }
+.seg button { border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--ink-2); padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--card); color: var(--ink); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.switch { position: relative; width: 44px; height: 26px; border-radius: 999px; background: #d1d1d6; border: 0; cursor: pointer; padding: 0; flex: none; }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: left .15s; }
+.switch[aria-checked="true"] { background: #34c759; }
+.switch[aria-checked="true"]::after { left: 20px; }
+@media (prefers-reduced-motion: reduce) { .switch::after { transition: none; } }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.kpi { padding: 16px 20px; display: grid; gap: 4px; }
+.kpi .k { color: var(--ink-3); font-size: 13px; }
+.kpi .v { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.kpi:first-child .v { color: var(--accent); }
+.kpi .s { color: var(--ink-2); font-size: 12.5px; }
+@media (max-width: 860px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.main { padding: 18px 22px; display: grid; gap: 10px; min-width: 0; }
+.main-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+h2 { margin: 0; font-size: 20px; letter-spacing: -0.01em; }
+.chart { position: relative; min-height: 360px; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.ax text { font: 12px var(--font); fill: var(--ink-3); }
+.empty { display: grid; place-items: center; min-height: 360px; color: var(--ink-3); text-align: center; }
+.spinner { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; margin: 0 auto 12px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+.legend { display: flex; gap: 22px; font-size: 12.5px; color: var(--ink-2); }
+.legend i { display: inline-block; width: 22px; height: 0; border-top: 3px dashed var(--accent); vertical-align: middle; margin-right: 7px; }
+.legend i.b { height: 10px; border: 0; background: var(--band); border-radius: 3px; }
+.legend i.a { border-top: 3px solid var(--ink); }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+th { color: var(--ink-3); font-weight: 500; font-size: 12px; text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th:first-child, td:first-child { text-align: left; }
+td.fc { color: var(--accent); font-weight: 600; }
+.tbl { overflow-x: auto; max-height: 420px; }
+pre.log { margin: 0; font: 12px ui-monospace, Menlo, monospace; color: var(--ink-2); white-space: pre-wrap; max-height: 420px; overflow: auto; }
+.status { color: var(--ink-3); font-size: 13px; }
+#tip { position: fixed; pointer-events: none; background: var(--card); border-radius: 14px; padding: 10px 12px; font-size: 12.5px; box-shadow: 0 10px 30px rgba(0,0,0,.16); z-index: 5; line-height: 1.55; }
+#tip b { display: block; }
+@media (max-width: 520px) { .wrap { padding: 24px 16px; } .main { padding: 16px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div>
+      <div class="eyebrow">ОЭС Северо-Запада · прогноз на сутки вперёд</div>
+      <h1>Прогноз потребления</h1>
+      <p class="sub">Нейросеть Chronos-2 · прогноз выпускается накануне в 09:00 по данным СО ЕЭС и прогнозу погоды</p>
+    </div>
+    <div class="actions">
+      <button class="pill" id="csv" disabled>Сохранить CSV</button>
+      <button class="pill" id="tomorrow">Завтра</button>
+      <button class="pill primary" id="run">Сделать прогноз</button>
+    </div>
+  </div>
+
+  <div class="card controls">
+    <div class="group"><span class="cap">Сутки</span><button class="pill round" id="prev" aria-label="Предыдущие сутки">‹</button><span class="date" id="date"></span><button class="pill round" id="next" aria-label="Следующие сутки">›</button></div>
+    <div class="group"><span class="cap">Модель</span><div class="seg" id="model"><button aria-pressed="true" data-v="chronos-lora">Chronos-2 LoRA</button><button aria-pressed="false" data-v="chronos-zs">Без дообучения</button></div></div>
+    <div class="group"><button class="switch" id="upd" role="switch" aria-checked="true" aria-label="Докачивать свежие данные"></button><span class="cap">Докачивать свежие данные с сайтов СО ЕЭС и Open-Meteo</span></div>
+  </div>
+
+  <div class="kpis">
+    <div class="card kpi"><span class="k">Пик нагрузки</span><span class="v" id="k-peak">—</span><span class="s" id="s-peak">&nbsp;</span></div>
+    <div class="card kpi"><span class="k">Энергия за сутки</span><span class="v" id="k-energy">—</span><span class="s">сумма 24 часов</span></div>
+    <div class="card kpi"><span class="k">Средняя температура</span><span class="v" id="k-temp">—</span><span class="s">прогноз погоды на сутки</span></div>
+    <div class="card kpi"><span class="k">Ошибка по факту</span><span class="v" id="k-mape">—</span><span class="s" id="s-mape">&nbsp;</span></div>
+  </div>
+
+  <div class="card main">
+    <div class="main-head">
+      <h2>Почасовой прогноз</h2>
+      <div class="seg" id="tabs"><button aria-pressed="true" data-v="chart">График</button><button aria-pressed="false" data-v="table">Таблица</button><button aria-pressed="false" data-v="log">Журнал</button></div>
+    </div>
+    <div id="v-chart"><div class="legend" id="legend" hidden><span><i></i>прогноз</span><span><i class="b"></i>коридор 10–90 %</span><span id="lg-a" hidden><i class="a"></i>факт</span></div><div class="chart" id="chart"><div class="empty">Нажмите «Сделать прогноз» — здесь появится почасовой график</div></div></div>
+    <div id="v-table" hidden><div class="tbl"><table id="tbl"><thead><tr><th>Час</th><th>Прогноз, МВт</th><th>10 %</th><th>90 %</th><th>Факт</th><th>Ошибка</th><th>Темп.</th></tr></thead><tbody></tbody></table></div></div>
+    <div id="v-log" hidden><pre class="log" id="log">Журнал пуст</pre></div>
+  </div>
+  <p class="status" id="status">Выберите сутки и нажмите «Сделать прогноз»</p>
+</div>
+<div id="tip" hidden></div>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
+const pad = n => String(n).padStart(2, '0');
+let date = new Date(); date.setDate(date.getDate() + 1);
+let model = 'chronos-lora', update = true, rows = [], meta = {}, busy = false;
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const dmy = d => `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+const showDate = () => { $('date').textContent = dmy(date); };
+showDate();
+
+function seg(id, onChange) {
+  $(id).addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || busy) return;
+    for (const x of $(id).children) x.setAttribute('aria-pressed', String(x === b));
+    onChange(b.dataset.v);
+  });
+}
+seg('model', v => { model = v; });
+seg('tabs', v => { for (const t of ['chart', 'table', 'log']) $('v-' + t).hidden = t !== v; if (v === 'chart') draw(); });
+$('upd').addEventListener('click', () => { if (busy) return; update = !update; $('upd').setAttribute('aria-checked', String(update)); });
+$('prev').addEventListener('click', () => { date.setDate(date.getDate() - 1); showDate(); });
+$('next').addEventListener('click', () => { date.setDate(date.getDate() + 1); showDate(); });
+$('tomorrow').addEventListener('click', () => { date = new Date(); date.setDate(date.getDate() + 1); showDate(); update = true; $('upd').setAttribute('aria-checked', 'true'); run(); });
+$('run').addEventListener('click', run);
+$('csv').addEventListener('click', () => {
+  const lines = ['hour;forecast_mw;p10_mw;p90_mw;actual_mw;temp_c', ...rows.map(r => [r.hour, Math.round(r.fc), Math.round(r.p10), Math.round(r.p90), r.actual ?? '', r.temp ?? ''].join(';'))];
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], { type: 'text/csv' }));
+  a.download = `прогноз_${(meta.date || '').replaceAll('.', '-')}.csv`;
+  a.click();
+});
+
+function setBusy(b, msg) {
+  busy = b;
+  for (const id of ['run', 'tomorrow', 'prev', 'next']) $(id).disabled = b;
+  $('csv').disabled = b || !rows.length;
+  $('run').textContent = b ? 'Считаю…' : 'Сделать прогноз';
+  $('status').textContent = msg;
+  if (b) $('chart').innerHTML = '<div class="empty"><div><div class="spinner"></div>Модель считает прогноз… обычно 30–60 секунд</div></div>';
+}
+
+async function run() {
+  if (busy) return;
+  setBusy(true, `Считаю прогноз на ${dmy(date)}…`);
+  $('legend').hidden = true;
+  try {
+    const r = await fetch(`/api/forecast?date=${iso(date)}&model=${model}&update=${update ? 1 : 0}`);
+    const d = await r.json();
+    $('log').textContent = d.log.join('\n') || 'Журнал пуст';
+    if (!d.ok) throw new Error(d.error);
+    rows = d.rows; meta = d.meta;
+    setBusy(false, `Прогноз на ${meta.date} выпущен как на ${meta.issued} · ${meta.model} · ${meta.seconds} с`);
+    show();
+  } catch (e) {
+    setBusy(false, 'Не удалось: ' + e.message);
+    $('chart').innerHTML = `<div class="empty">${e.message}</div>`;
+  }
+}
+
+function show() {
+  $('k-peak').textContent = nf.format(+meta.peak) + ' МВт';
+  $('s-peak').textContent = `в ${meta.peak_hour}:00 · ${meta.day_type} день`;
+  $('k-energy').textContent = meta.energy.replace('.', ',') + ' ГВт·ч';
+  $('k-temp').textContent = meta.temp_mean === '-' ? '—' : meta.temp_mean.replace('.', ',') + ' °C';
+  const has = meta.mape !== '-';
+  $('k-mape').textContent = has ? meta.mape.replace('.', ',') + ' %' : '—';
+  $('k-mape').style.color = has ? 'var(--good)' : 'var(--ink-3)';
+  $('s-mape').textContent = has ? `по ${meta.actual_hours} часам` : 'факта ещё нет';
+  $('tbl').tBodies[0].innerHTML = rows.map(r => {
+    const e = r.actual ? ((r.fc - r.actual) / r.actual * 100) : null;
+    return `<tr><td>${pad(r.hour)}:00</td><td class="fc">${nf.format(r.fc)}</td><td>${nf.format(r.p10)}</td><td>${nf.format(r.p90)}</td><td>${r.actual ? nf.format(r.actual) : '—'}</td><td>${e == null ? '' : (e > 0 ? '+' : '') + e.toFixed(1).replace('.', ',') + ' %'}</td><td>${r.temp == null ? '—' : r.temp.toFixed(1).replace('.', ',') + ' °C'}</td></tr>`;
+  }).join('');
+  $('legend').hidden = false;
+  $('lg-a').hidden = !rows.some(r => r.actual);
+  draw();
+}
+
+const NS = 'http://www.w3.org/2000/svg';
+const s = (t, a = {}, p) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; };
+function draw() {
+  if (!rows.length || busy) return;
+  const box = $('chart'), W = box.clientWidth || 900, H = 360, mg = { l: 62, r: 14, t: 14, b: 32 };
+  let lo = Infinity, hi = -Infinity;
+  for (const r of rows) for (const v of [r.p10, r.p90, r.actual]) if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  const step = hi - lo > 2500 ? 1000 : 500, ylo = Math.floor(lo / step) * step, yhi = Math.ceil(hi / step) * step;
+  const X = h => mg.l + h / 23 * (W - mg.l - mg.r), Y = v => mg.t + (1 - (v - ylo) / (yhi - ylo)) * (H - mg.t - mg.b);
+  const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, height: H, role: 'img', 'aria-label': 'Почасовой прогноз потребления' });
+  const ax = s('g', { class: 'ax' }, svg);
+  for (let v = ylo; v <= yhi; v += step) { s('line', { x1: mg.l, x2: W - mg.r, y1: Y(v), y2: Y(v), style: 'stroke:var(--line)' }, svg); s('text', { x: mg.l - 10, y: Y(v) + 4, 'text-anchor': 'end' }, ax).textContent = nf.format(v); }
+  for (let h = 0; h < 24; h += 3) s('text', { x: X(h), y: H - 8, 'text-anchor': 'middle' }, ax).textContent = pad(h) + ':00';
+  const band = rows.map(r => `${X(r.hour)},${Y(r.p90)}`).concat(rows.slice().reverse().map(r => `${X(r.hour)},${Y(r.p10)}`)).join(' ');
+  s('polygon', { points: band, style: 'fill:var(--band)' }, svg);
+  const act = rows.filter(r => r.actual != null);
+  if (act.length) s('polyline', { points: act.map(r => `${X(r.hour)},${Y(r.actual)}`).join(' '), fill: 'none', 'stroke-width': 2.6, 'stroke-linejoin': 'round', style: 'stroke:var(--ink)' }, svg);
+  s('polyline', { points: rows.map(r => `${X(r.hour)},${Y(r.fc)}`).join(' '), fill: 'none', 'stroke-width': 2.6, 'stroke-dasharray': '7 5', 'stroke-linejoin': 'round', 'stroke-linecap': 'round', style: 'stroke:var(--accent)' }, svg);
+  const cross = s('line', { y1: mg.t, y2: H - mg.b, style: 'stroke:var(--ink-3);stroke-opacity:.5', visibility: 'hidden' }, svg);
+  const dot = s('circle', { r: 5, style: 'fill:var(--accent);stroke:var(--card);stroke-width:2', visibility: 'hidden' }, svg);
+  const hit = s('rect', { x: mg.l, y: 0, width: W - mg.l - mg.r, height: H, fill: 'transparent' }, svg);
+  const tip = $('tip');
+  hit.addEventListener('pointermove', e => {
+    const rc = svg.getBoundingClientRect(), px = (e.clientX - rc.left) * W / rc.width;
+    const h = Math.max(0, Math.min(23, Math.round((px - mg.l) / (W - mg.l - mg.r) * 23))), r = rows[h];
+    cross.setAttribute('x1', X(h)); cross.setAttribute('x2', X(h)); cross.setAttribute('visibility', 'visible');
+    dot.setAttribute('cx', X(h)); dot.setAttribute('cy', Y(r.fc)); dot.setAttribute('visibility', 'visible');
+    tip.innerHTML = `<b>${pad(h)}:00</b>Прогноз ${nf.format(r.fc)} МВт<br>Коридор ${nf.format(r.p10)}–${nf.format(r.p90)}${r.actual ? `<br>Факт ${nf.format(r.actual)} МВт` : ''}${r.temp != null ? `<br>Температура ${r.temp.toFixed(1).replace('.', ',')} °C` : ''}`;
+    tip.hidden = false;
+    tip.style.left = Math.min(innerWidth - tip.offsetWidth - 8, e.clientX + 16) + 'px';
+    tip.style.top = Math.min(innerHeight - tip.offsetHeight - 8, e.clientY + 16) + 'px';
+  });
+  hit.addEventListener('pointerleave', () => { tip.hidden = true; cross.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden'); });
+  box.replaceChildren(svg);
+}
+new ResizeObserver(() => draw()).observe($('chart'));
+})();
+</script>
+</body>
+</html>
