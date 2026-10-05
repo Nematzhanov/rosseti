@@ -121,10 +121,17 @@ const $ = id => document.getElementById(id);
 const nf = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
 const pad = n => String(n).padStart(2, '0');
 let date = new Date(); date.setDate(date.getDate() + 1);
-let model = 'chronos-lora', update = true, rows = [], meta = {}, busy = false;
+let model = 'chronos-lora', update = true, rows = [], meta = {}, busy = false, lastKey = '';
+const maxDate = () => { const t = new Date(); t.setDate(t.getDate() + 1); return iso(t); };
 const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const dmy = d => `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
-const showDate = () => { $('date').textContent = dmy(date); };
+const showDate = () => { $('date').textContent = dmy(date); $('next').disabled = busy || iso(date) >= maxDate(); };
+function markStale() {
+  if (!rows.length) return;
+  document.querySelectorAll('.kpi .v').forEach(v => { v.style.color = 'var(--ink-3)'; });
+  $('chart').style.opacity = '.35';
+  $('status').textContent = `Показан прогноз на ${meta.date}. Параметры изменены — нажмите «Сделать прогноз»`;
+}
 showDate();
 
 function seg(id, onChange) {
@@ -134,11 +141,11 @@ function seg(id, onChange) {
     onChange(b.dataset.v);
   });
 }
-seg('model', v => { model = v; });
+seg('model', v => { model = v; markStale(); });
 seg('tabs', v => { for (const t of ['chart', 'table', 'log']) $('v-' + t).hidden = t !== v; if (v === 'chart') draw(); });
 $('upd').addEventListener('click', () => { if (busy) return; update = !update; $('upd').setAttribute('aria-checked', String(update)); });
-$('prev').addEventListener('click', () => { date.setDate(date.getDate() - 1); showDate(); });
-$('next').addEventListener('click', () => { date.setDate(date.getDate() + 1); showDate(); });
+$('prev').addEventListener('click', () => { date.setDate(date.getDate() - 1); showDate(); markStale(); });
+$('next').addEventListener('click', () => { if (iso(date) >= maxDate()) return; date.setDate(date.getDate() + 1); showDate(); markStale(); });
 $('tomorrow').addEventListener('click', () => { date = new Date(); date.setDate(date.getDate() + 1); showDate(); update = true; $('upd').setAttribute('aria-checked', 'true'); run(); });
 $('run').addEventListener('click', run);
 $('csv').addEventListener('click', () => {
@@ -152,6 +159,7 @@ $('csv').addEventListener('click', () => {
 function setBusy(b, msg) {
   busy = b;
   for (const id of ['run', 'tomorrow', 'prev', 'next']) $(id).disabled = b;
+  showDate();
   $('csv').disabled = b || !rows.length;
   $('run').textContent = b ? 'Считаю…' : 'Сделать прогноз';
   $('status').textContent = msg;
@@ -168,7 +176,8 @@ async function run() {
     $('log').textContent = d.log.join('\n') || 'Журнал пуст';
     if (!d.ok) throw new Error(d.error);
     rows = d.rows; meta = d.meta;
-    setBusy(false, `Прогноз на ${meta.date} выпущен как на ${meta.issued} · ${meta.model} · ${meta.seconds} с`);
+    const key = iso(date) + model, same = key === lastKey; lastKey = key;
+    setBusy(false, `Прогноз на ${meta.date} выпущен как на ${meta.issued} · ${meta.model} · ${meta.seconds} с` + (same ? ' · результат тот же: данные на 09:00 накануне для этих суток уже не меняются' : ''));
     show();
   } catch (e) {
     setBusy(false, 'Не удалось: ' + e.message);
@@ -177,6 +186,8 @@ async function run() {
 }
 
 function show() {
+  $('chart').style.opacity = '';
+  document.querySelectorAll('.kpi .v').forEach(v => { v.style.color = ''; });
   $('k-peak').textContent = nf.format(+meta.peak) + ' МВт';
   $('s-peak').textContent = `в ${meta.peak_hour}:00 · ${meta.day_type} день`;
   $('k-energy').textContent = meta.energy.replace('.', ',') + ' ГВт·ч';

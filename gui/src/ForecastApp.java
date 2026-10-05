@@ -46,7 +46,8 @@ public class ForecastApp extends JFrame {
     final Map<String, JLabel[]> kpi = new LinkedHashMap<>();
     final Pill runBtn = new Pill("Сделать прогноз", true), tomorrowBtn = new Pill("Завтра", false), csvBtn = new Pill("Сохранить CSV", false);
     final Pill prevBtn = new Pill("‹", false), nextBtn = new Pill("›", false);
-    final Segmented modelSeg = new Segmented(Arrays.stream(MODELS).map(m -> m[1]).toArray(String[]::new), i -> model = i);
+    final Segmented modelSeg = new Segmented(Arrays.stream(MODELS).map(m -> m[1]).toArray(String[]::new), i -> { model = i; markStale(); });
+    String lastKey = "";
     final Toggle updToggle = new Toggle(true, v -> update = v);
     final ChartPanel chart = new ChartPanel();
     final DefaultTableModel tableModel = new DefaultTableModel(new String[]{"Час", "Прогноз", "10 %", "90 %", "Факт", "Ошибка", "Темп."}, 0) {
@@ -181,8 +182,8 @@ public class ForecastApp extends JFrame {
         page.add(main, BorderLayout.CENTER);
         page.add(status, BorderLayout.SOUTH);
 
-        prevBtn.addActionListener(e -> { date = date.minusDays(1); refreshDate(); });
-        nextBtn.addActionListener(e -> { date = date.plusDays(1); refreshDate(); });
+        prevBtn.addActionListener(e -> { date = date.minusDays(1); refreshDate(); markStale(); });
+        nextBtn.addActionListener(e -> { if (date.isBefore(LocalDate.now().plusDays(1))) { date = date.plusDays(1); refreshDate(); markStale(); } });
         runBtn.addActionListener(e -> runForecast());
         tomorrowBtn.addActionListener(e -> { date = LocalDate.now().plusDays(1); refreshDate(); updToggle.set(true); runForecast(); });
         csvBtn.addActionListener(e -> saveCsv());
@@ -194,7 +195,16 @@ public class ForecastApp extends JFrame {
     static JPanel transparent(LayoutManager lm) { JPanel p = new JPanel(lm); p.setOpaque(false); return p; }
     static JLabel caption(String t) { return label(t, 13, Font.PLAIN, INK2); }
     static Component gap(int w) { return Box.createHorizontalStrut(w); }
-    void refreshDate() { dateLabel.setText(date.format(DMY)); }
+    void refreshDate() { dateLabel.setText(date.format(DMY)); nextBtn.setEnabled(!busy && date.isBefore(LocalDate.now().plusDays(1))); }
+
+    /** Параметры изменились — старый результат приглушаем и подсказываем, что нужно пересчитать. */
+    void markStale() {
+        if (rows.isEmpty()) return;
+        for (JLabel[] l : kpi.values()) l[0].setForeground(INK3);
+        chart.stale = true;
+        chart.repaint();
+        status.setText("Показан прогноз на " + meta.get("date") + ". Параметры изменены — нажмите «Сделать прогноз»");
+    }
 
     // ---------- расчёт ----------
     void runForecast() {
@@ -245,8 +255,12 @@ public class ForecastApp extends JFrame {
                 try { ok = get(); } catch (Exception ex) { ok = false; lastLine = ex.getMessage(); }
                 setBusy(false, ok ? "Готово" : "Не удалось: " + lastLine);
                 if (!ok) { JOptionPane.showMessageDialog(ForecastApp.this, lastLine, "Прогноз не получен", JOptionPane.WARNING_MESSAGE); return; }
+                String key = date + "|" + model;
+                boolean same = key.equals(lastKey);
+                lastKey = key;
                 rows = nr; meta = nm;
                 showResult();
+                if (same) status.setText(status.getText() + " · результат тот же: данные на 09:00 накануне для этих суток уже не меняются");
             }
         }.execute();
     }
@@ -254,6 +268,7 @@ public class ForecastApp extends JFrame {
     void setBusy(boolean b, String msg) {
         busy = b;
         for (JComponent c : List.of(runBtn, tomorrowBtn, prevBtn, nextBtn, modelSeg, updToggle)) c.setEnabled(!b);
+        refreshDate();
         csvBtn.setEnabled(!b && !rows.isEmpty());
         runBtn.setText(b ? "Считаю…" : "Сделать прогноз");
         status.setText(msg);
@@ -274,7 +289,10 @@ public class ForecastApp extends JFrame {
         set("Средняя температура", t.equals("-") ? "—" : t.replace('.', ',') + " °C", "прогноз погоды на сутки");
         String m = meta.getOrDefault("mape", "-");
         set("Ошибка по факту", m.equals("-") ? "—" : m.replace('.', ',') + " %", m.equals("-") ? "факта ещё нет" : "по " + meta.get("actual_hours") + " часам");
+        int ki = 0;
+        for (JLabel[] l : kpi.values()) l[0].setForeground(ki++ == 0 ? ACCENT : INK);
         kpi.get("Ошибка по факту")[0].setForeground(m.equals("-") ? INK3 : GOOD);
+        chart.stale = false;
         status.setText("Прогноз на " + meta.get("date") + " выпущен как на " + meta.get("issued") + " · " + meta.get("model") + " · " + meta.get("seconds") + " с");
         chart.repaint();
         csvBtn.setEnabled(true);
@@ -417,7 +435,7 @@ public class ForecastApp extends JFrame {
     /** График: коридор 10–90 %, прогноз (синий пунктир), факт (чёрный), подсказка при наведении. */
     class ChartPanel extends JPanel {
         int hover = -1;
-        boolean busy;
+        boolean busy, stale;
         static final int L = 64, R = 18, T = 40, B = 40;
 
         ChartPanel() {
@@ -506,6 +524,20 @@ public class ForecastApp extends JFrame {
                     g.setColor(i == 0 ? INK : INK2);
                     g.drawString(lines.get(i), bx + 12, by + 22 + i * 19);
                 }
+            }
+            if (stale) {
+                g.setColor(new Color(255, 255, 255, 170));
+                g.fillRect(0, 0, W, H);
+                g.setFont(new Font(FONT, Font.BOLD, 15));
+                String msg = "Сутки или модель изменены — нажмите «Сделать прогноз»";
+                FontMetrics f2 = g.getFontMetrics();
+                int bw = f2.stringWidth(msg) + 36;
+                g.setColor(Color.WHITE);
+                g.fillRoundRect((W - bw) / 2, H / 2 - 24, bw, 44, 22, 22);
+                g.setColor(LINE);
+                g.drawRoundRect((W - bw) / 2, H / 2 - 24, bw, 44, 22, 22);
+                g.setColor(ACCENT);
+                g.drawString(msg, (W - f2.stringWidth(msg)) / 2, H / 2 + 4);
             }
             g.dispose();
         }
