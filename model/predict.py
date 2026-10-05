@@ -65,7 +65,11 @@ def fetch_power(cons: pd.Series, until: pd.Timestamp) -> pd.Series:
     extra = {}
     for d in pd.date_range(start, until.normalize(), freq="D"):
         log(f"  СО ЕЭС: {d:%d.%m.%Y}")
-        rec = download.fetch(d.date(), 840000)
+        try:
+            rec = download.fetch(d.date(), 840000, retries=2)
+        except RuntimeError:  # у СО ЕЭС ещё нет данных за эти сутки (например, текущие сутки ночью)
+            log("    данных ещё нет, пропускаю")
+            continue
         for x, v in zip(rec["x"], rec["cons"]):
             dd, hh = x.split(" ")
             if v.strip():
