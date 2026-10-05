@@ -150,6 +150,33 @@ function section(num, idx, head, sub, note) {
   }
   s.addNotes(note);
 }
+// ---------- История ----------
+{
+  const s = newSlide(), a = anim[s._n]; orb(s, 'content', '00');
+  title(s, 'История: чайники после матча', 'Почему вопрос «сколько электроэнергии понадобится в этот час?» так важен');
+  const g = [...raised(s, 0.6, 1.75, 4.5, 5.0, { fill: C.ACC })];
+  g.push(text(s, '4 июля 1990', { x: 0.95, y: 2.05, w: 3.8, h: 0.35, fontSize: 13, bold: true, color: 'DCE7FA', charSpacing: 2 }));
+  g.push(text(s, '2 800 МВт', { x: 0.95, y: 2.5, w: 3.8, h: 1.0, fontSize: 52, bold: true, color: C.WHITE, valign: 'bottom' }));
+  g.push(text(s, 'скачок потребления в Великобритании за считанные минуты после серии пенальти в полуфинале чемпионата мира Англия — ФРГ', { x: 0.95, y: 3.65, w: 3.8, h: 1.5, fontSize: 14.5, color: 'E6EEFB', valign: 'top' }));
+  g.push(text(s, '≈ 1,2 млн включённых чайников', { x: 0.95, y: 5.5, w: 3.8, h: 0.9, fontSize: 18, bold: true, color: C.WHITE, valign: 'top' }));
+  a.push(g);
+  const steps = [
+    ['Что происходит', 'В перерыве и после финального свистка миллионы людей одновременно ставят чайник. Нагрузка на сеть растёт на тысячи мегаватт за минуты.'],
+    ['Как справляются', 'Диспетчеры заранее изучают телепрограмму и держат наготове быстрые станции: Dinorwig выдаёт 1 320 МВт за 12 секунд. Такие пики есть и сегодня: в финале Евро-2024 — 1 300 МВт.'],
+    ['Наша задача', 'Та же, только в масштабе всего региона: заранее знать, сколько электроэнергии понадобится в каждый час завтрашних суток.'],
+  ];
+  steps.forEach(([head, body], i) => {
+    const y = 1.75 + i * 1.7, gg = [];
+    gg.push(...raised(s, 5.45, y, 7.3, 1.45));
+    gg.push(inset(s, 5.8, y + 0.37, 0.7, 0.7, { circle: true }));
+    gg.push(text(s, String(i + 1), { x: 5.8, y: y + 0.37, w: 0.7, h: 0.7, align: 'center', valign: 'middle', fontSize: 22, bold: true, color: C.ACC }));
+    gg.push(text(s, head, { x: 6.75, y: y + 0.15, w: 5.8, h: 0.4, fontSize: 18, bold: true }));
+    gg.push(text(s, body, { x: 6.75, y: y + 0.55, w: 5.8, h: 0.85, fontSize: 12.5, color: C.MUTED, valign: 'top' }));
+    a.push(gg);
+  });
+  s.addNotes('История о чайниках.');
+}
+
 section('01', 0, 'Постановка задачи', 'Проблема, актуальность, цель и задачи исследования', 'Первый раздел: зачем нужен прогноз и что мы хотим получить.');
 
 // ---------- Проблема ----------
@@ -510,6 +537,21 @@ section('03', 2, 'Результаты', 'Точность за год, пове
     a.push(g);
   });
   s.addNotes('Итог: предобученная модель временных рядов после дообучения даёт лучший прогноз, погода важна, всё работает на обычном ноутбуке. Дальше — масштабирование на все ОЭС.');
+}
+
+// ---------- Спасибо и QR ----------
+{
+  const s = newSlide(), a = anim[s._n]; orb(s, 'section', '?');
+  text(s, 'Спасибо за внимание', { x: 5.0, y: 1.85, w: 4.4, h: 1.9, fontSize: 40, bold: true, valign: 'bottom' });
+  text(s, 'Прогноз на завтра, результаты за год и код — по QR-коду', { x: 5.0, y: 3.85, w: 3.9, h: 1.1, fontSize: 16, color: C.MUTED, valign: 'top' });
+  text(s, 'nematzhanov.github.io/rosseti', { x: 5.0, y: 5.05, w: 4.2, h: 0.4, fontSize: 14, bold: true, color: C.ACC });
+  const g = [...raised(s, 9.35, 1.9, 3.4, 3.9, { r: 0.3 })];
+  const img = nm(s, 'qr');
+  s.addImage({ path: path.join(__dirname, 'img', 'qr.png'), x: 9.7, y: 2.25, w: 2.7, h: 2.7, objectName: img, altText: 'QR-код: nematzhanov.github.io/rosseti' });
+  g.push(img);
+  g.push(text(s, 'Наведите камеру', { x: 9.7, y: 5.05, w: 2.7, h: 0.5, align: 'center', valign: 'middle', fontSize: 13, color: C.MUTED }));
+  a.push(g);
+  s.addNotes('Спасибо.');
 }
 
 fs.writeFileSync(path.join(__dirname, 'anim.json'), JSON.stringify(anim, null, 1));
